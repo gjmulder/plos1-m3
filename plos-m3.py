@@ -15,7 +15,7 @@ basicConfig(level = log_level,
 logger = getLogger(__name__)
 
 import numpy as np
-import pandas as pd
+#import pandas as pd
 from datetime import date
 
 from hyperopt import fmin, tpe, hp, space_eval, STATUS_FAIL, STATUS_OK
@@ -24,7 +24,7 @@ from os import environ
 import traceback
 from math import log
 #from itertools import repeat
-from datetime import timedelta
+#from datetime import timedelta
 from json import loads
 
 import mxnet as mx
@@ -54,12 +54,15 @@ else:
     
     use_cluster = False
 
-#if dataset_name == "m4_daily":
-#    time_features = [DayOfWeek(), DayOfMonth(), DayOfYear(), MonthOfYear()]
-#if dataset_name == "m4_hourly":
-##    time_features = [HourOfDay(), DayOfWeek(), DayOfMonth(), DayOfYear(), MonthOfYear()]
-#    time_features = [HourOfDay(), DayOfWeek()]
-
+if "DATASET" in environ:    
+    dataset_name = environ.get("DATASET")
+    logger.info("Using dataset : %s" % dataset_name)
+    
+    use_cluster = True
+else:
+    dataset_name = "test"
+    logger.warning("DATASET not set, using: %s" % version)
+    
 num_eval_samples = 1
 freq="M"
 prediction_length = 18
@@ -80,65 +83,6 @@ def load_plos_m3_data():
                data["%s-nocat" % dataset].append(ts_data_copy)
     return data
 
-#   errors_mse <- c(errors_mse, mean((as.numeric(rep(frc[i,j], fh))-as.numeric(outsample))^2)/(mean(insample)^2))
-def sMSE(insample, outsample, y_hat):
-    if np.isnan(insample).any():
-        raise ValueError("np.isnan(insample).any()")
-    if np.isnan(outsample).any():
-        raise ValueError("np.isnan(outsample).any()")
-    if np.isnan(y_hat).any():
-        raise ValueError("np.isnan(y_hat).any()")
-        
-    err = np.mean((y_hat - outsample) * (y_hat - outsample)) / (np.mean(insample) * np.mean(insample))
-
-    if np.isnan(err):
-        raise ValueError("sMSE returned NaN")
-    return err
-     
-def compute_errors(train, test, y_hats):
-    errs = []
-    for idx in range(len(y_hats)):
-        errs.append(sMSE(train.iloc[idx].dropna().values, test.iloc[idx].values, y_hats.iloc[idx].values))
-    return np.mean(errs)
-
-def ts_to_dict(idx, ts, colnames):
-    ts_srs = pd.Series(ts, name='ts')
-    
-    # Find the first non NaN
-    first_valid = ts_srs[ts_srs.notnull()].index[0]
-    rec = {
-        "start"             : str(pd.to_datetime("2017-01-01 00:00") + timedelta(days=int(colnames[int(first_valid)]))),
-        "target"            : ts_srs[first_valid:].values, 
-        "feat_static_cat"   : [idx],
-    } 
-#    print("Target len: %d, feat_dynamic_real shape: %s" % (len(rec['target']), rec['feat_dynamic_real'].shape))
-    return rec
-
-def ts_to_dict_1hot(idx, ts, one_hot, colnames):
-    one_hot_ts = one_hot.append(pd.Series(ts, index=one_hot.columns, name='ts')).transpose()
-    
-    # Find the first non NaN
-    first_valid = one_hot_ts['ts'][one_hot_ts['ts'].notnull()].index[0]
-    rec = {
-        "start"             : str(pd.to_datetime("2017-01-01 00:00") + timedelta(days=int(colnames[int(first_valid)]))),
-        "target"            : one_hot_ts['ts'][first_valid:].values, 
-        "feat_static_cat"   : [idx],
-        "feat_dynamic_real" : one_hot_ts[first_valid:].drop(['ts'], axis=1).transpose().values,
-    } 
-#    print("Target len: %d, feat_dynamic_real shape: %s" % (len(rec['target']), rec['feat_dynamic_real'].shape))
-    return rec
-
-def load_greek_holidays():
-    holidays = pd.read_csv("greek_holidays.csv")
-    holidays['date'] = pd.to_datetime(holidays['date'])
-    holidays.set_index('date', inplace=True)
-    
-    dates = pd.date_range("1/1/2017", "31/12/2017", freq="1D")
-    all_days = pd.DataFrame({'idx' : [str(idx) for idx in range(1, len(dates)+1)]}, index = dates).join(holidays)
-    hols_1_hot = pd.get_dummies(all_days['type'])
-    hols_1_hot.set_index(all_days['idx'], inplace=True)
-    return(hols_1_hot.transpose())
-    
 def forecast(data, cfg):
     logger.info("Params: %s " % cfg)
     
@@ -146,25 +90,24 @@ def forecast(data, cfg):
         gluon_train = ListDataset(data['train-nocat'], freq=freq)
     else:
         gluon_train = ListDataset(data['train'], freq=freq)
-    
 
-    trainer=Trainer(
-        mx.Context("gpu"),
-        epochs=5,
-    )
-    
 #    trainer=Trainer(
 #        mx.Context("gpu"),
-#        epochs=cfg['trainer']['max_epochs'],
-#        num_batches_per_epoch=cfg['trainer']['num_batches_per_epoch'],
-#        batch_size=cfg['trainer']['batch_size'],
-#        patience=cfg['trainer']['patience'],
-#        
-#        learning_rate=cfg['trainer']['learning_rate'],
-#        learning_rate_decay_factor=cfg['trainer']['learning_rate_decay_factor'],
-#        minimum_learning_rate=cfg['trainer']['minimum_learning_rate'],
-#        weight_decay=cfg['trainer']['weight_decay'],
+#        epochs=5,
 #    )
+    
+    trainer=Trainer(
+        mx.Context("gpu"),
+        epochs=cfg['trainer']['max_epochs'],
+        num_batches_per_epoch=cfg['trainer']['num_batches_per_epoch'],
+        batch_size=cfg['trainer']['batch_size'],
+        patience=cfg['trainer']['patience'],
+        
+        learning_rate=cfg['trainer']['learning_rate'],
+        learning_rate_decay_factor=cfg['trainer']['learning_rate_decay_factor'],
+        minimum_learning_rate=cfg['trainer']['minimum_learning_rate'],
+        weight_decay=cfg['trainer']['weight_decay'],
+    )
     
     if cfg['model']['type'] == 'SimpleFeedForwardEstimator':
         estimator = SimpleFeedForwardEstimator(
@@ -192,7 +135,7 @@ def forecast(data, cfg):
             num_cells=cfg['model']['num_cells'],
             num_layers=cfg['model']['num_layers'],        
             dropout_rate=cfg['model']['dar_dropout_rate'],
-#            use_feat_dynamic_real=True,
+            use_feat_dynamic_real=True,
             use_feat_static_cat=True,
             cardinality=[len(data['train']), 6],
             num_parallel_samples=1,
@@ -202,12 +145,14 @@ def forecast(data, cfg):
          estimator = TransformerEstimator(
             freq=freq,
             prediction_length=prediction_length,
-            model_dim=cfg['model']['model_dim'], 
+#            model_dim=cfg['model']['model_dim'], 
+            model_dim=cfg['model']['model_dim_heads'][0], 
             inner_ff_dim_scale=cfg['model']['inner_ff_dim_scale'],
             pre_seq=cfg['model']['pre_seq'], 
             post_seq=cfg['model']['post_seq'], 
             act_type=cfg['model']['act_type'], 
-            num_heads=cfg['model']['num_heads'], 
+#            num_heads=cfg['model']['num_heads'], 
+            num_heads=cfg['model']['model_dim_heads'][1], 
             dropout_rate=cfg['model']['trans_dropout_rate'],
 #            use_feat_dynamic_real=True,
             use_feat_static_cat=True,
@@ -286,13 +231,14 @@ def call_hyperopt():
             },
             {
                 'type'                       : 'TransformerEstimator',
-                'model_dim'                  : hp.choice('model_dim', [2, 4, 8, 16, 32, 64]),
+                'model_dim_heads'            : hp.choice('model_dim_heads', [[2, 2], [4, 2], [8, 2], [16, 2], [32, 2], [64, 2],
+                                                                             [4, 4], [8, 4], [16, 4], [32, 4], [64, 4],
+                                                                             [8, 8], [16, 8], [32, 8], [64, 8],
+                                                                             [16, 16], [32, 16], [64, 16]]),
                 'inner_ff_dim_scale'         : hp.choice('inner_ff_dim_scale', [2, 3, 4, 5]),
                 'pre_seq'                    : hp.choice('pre_seq', ['dn']),
                 'post_seq'                   : hp.choice('post_seq', ['drn']),
-                'act_type'                   : hp.choice('act_type', ['softrelu']),
-                'num_heads'                  : hp.choice('num_heads', [2, 4, 8, 16]),
-               
+                'act_type'                   : hp.choice('act_type', ['softrelu']),               
                 'trans_dropout_rate'         : hp.uniform('trans_dropout_rate', dropout_rate[0], dropout_rate[1]),
             },
         ])
@@ -305,7 +251,7 @@ def call_hyperopt():
     if use_cluster:
         exp_key = "%s" % str(date.today())
         logger.info("exp_key for this job is: %s" % exp_key)
-        trials = MongoTrials('mongo://heika:27017/sku-%s/jobs' % version, exp_key=exp_key)
+        trials = MongoTrials('mongo://heika:27017/%s-%s/jobs' % (dataset_name, version), exp_key=exp_key)
         best = fmin(gluon_fcast, space, rstate=np.random.RandomState(rand_seed), algo=tpe.suggest, show_progressbar=False, trials=trials, max_evals=500)
     else:
         best = fmin(gluon_fcast, space, algo=tpe.suggest, show_progressbar=False, max_evals=20)
