@@ -65,7 +65,7 @@ else:
     
 num_eval_samples = 1
 freq="M"
-prediction_length = 18
+prediction_length = 1
     
 ########################################################################################################
 
@@ -177,10 +177,9 @@ def forecast(data, cfg):
     agg_metrics, item_metrics = Evaluator()(
         ts_it, forecast_it, num_series=len(data['test'])
     )
-    
-    mase = agg_metrics['MASE']
-    logger.info("MASE : %.3f" % mase)
-    return mase
+ 
+    logger.info("MASE : %.3f" % agg_metrics['MASE'])
+    return agg_metrics['sMAPE']
 
 def gluon_fcast(cfg):        
     try:
@@ -190,8 +189,8 @@ def gluon_fcast(cfg):
         logger.error(exc_str)
         return {'loss': None, 'status': STATUS_FAIL, 'cfg' : cfg, 'exception': exc_str, 'build_url' : environ.get("BUILD_URL")}
         
-    logger.info("MASE: %.3f" % err)
-    return {'loss': err, 'status': STATUS_OK, 'cfg' : cfg, 'build_url' : environ.get("BUILD_URL")}
+    logger.info("sMAPE: %.3f" % float(float(err)*100))
+    return {'loss': float(float(err)*100), 'status': STATUS_OK, 'cfg' : cfg, 'build_url' : environ.get("BUILD_URL")}
 
 def call_hyperopt():
     dropout_rate = [0.05, 0.15]
