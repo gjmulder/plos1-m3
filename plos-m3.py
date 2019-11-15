@@ -135,7 +135,7 @@ def forecast(data, cfg):
             num_cells=cfg['model']['num_cells'],
             num_layers=cfg['model']['num_layers'],        
             dropout_rate=cfg['model']['dar_dropout_rate'],
-            use_feat_dynamic_real=True,
+#            use_feat_dynamic_real=True,
             use_feat_static_cat=True,
             cardinality=[len(data['train']), 6],
             num_parallel_samples=1,
