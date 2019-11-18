@@ -28,7 +28,7 @@ bnn_smape <- 7.96
 gg <- ggplot(mongo_plot_data) +
   geom_hline(yintercept = dl_smape) +
   geom_text(aes(x = 0, y = dl_smape - 0.3, hjust = "left"), size=3,
-            label = paste0("Transformer = ", round(dl_smape, 2))) +
+            label = paste0("Deep Auto Regressive = ", round(dl_smape, 2))) +
   geom_hline(yintercept = ets_smape) +
   geom_text(aes(x = 0, y = ets_smape - 0.3, hjust = "left"), size=3,
             label = paste0("ETS = ", ets_smape)) +
@@ -40,7 +40,7 @@ gg <- ggplot(mongo_plot_data) +
 gg_rank <-
   gg +
   geom_point(aes(x = rank, y = sMAPE, colour = experiment),
-             size = 0.1) +
+             size = 2) +
   facet_grid(model.type.count ~ .) +
   xlab("Rank") +
   ylab("sMAPE (log scale)") +
@@ -49,7 +49,7 @@ gg_rank <-
 gg_duration <-
   gg +
   geom_point(aes(x = training.duration.secs, y = sMAPE, colour = model.type.count),
-             size = 0.5) +
+             size = 2) +
   geom_smooth(aes(x = training.duration.secs, y = sMAPE), se = FALSE) +
   xlab("Duration (secs)") +
   ylab("sMAPE (log scale)") +

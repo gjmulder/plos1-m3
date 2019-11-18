@@ -143,7 +143,7 @@ process_period <- function(period, m3_data, final_mode) {
   return(length(m3_train))
 }
 
-final_mode <- TRUE
+final_mode <- FALSE
 # periods <- as.vector(levels(m3_data[[1]]$period))
 periods <- c("monthly")
 res <- unlist(lapply(periods, process_period, m3_data, final_mode))

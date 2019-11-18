@@ -65,7 +65,7 @@ else:
     
 num_eval_samples = 1
 freq="M"
-prediction_length = 1
+prediction_length = 12
     
 ########################################################################################################
 
@@ -264,8 +264,8 @@ def call_hyperopt():
 #            'weight_decay'               : hp.uniform('weight_decay', 00.5e-08, 10.0e-08),
 #        },
         'trainer' : {
-            'max_epochs'                 : hp.choice('max_epochs', [250, 500, 1000, 2000, 4000, 8000]),
-            'num_batches_per_epoch'      : hp.choice('num_batches_per_epoch', [40, 80, 160, 320, 640]),
+            'max_epochs'                 : hp.choice('max_epochs', [250, 500, 1000, 2000]),
+            'num_batches_per_epoch'      : hp.choice('num_batches_per_epoch', [40, 80, 160, 320]),
             'batch_size'                 : hp.choice('batch_size', [100, 200, 400, 800, 1200]),
             'patience'                   : hp.choice('patience', [40, 80, 160, 320]),
             
