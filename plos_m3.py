@@ -21,10 +21,8 @@ from datetime import date
 from hyperopt import fmin, tpe, hp, space_eval, STATUS_FAIL, STATUS_OK
 from hyperopt.mongoexp import MongoTrials
 from os import environ
-import traceback
+from traceback import format_exc
 from math import log
-#from itertools import repeat
-#from datetime import timedelta
 from json import loads
 
 import mxnet as mx
@@ -36,12 +34,12 @@ from gluonts.model.deep_factor import DeepFactorEstimator
 from gluonts.trainer import Trainer
 from gluonts.evaluation.backtest import make_evaluation_predictions
 from gluonts.evaluation import Evaluator
+    
+########################################################################################################
 
 rand_seed = 42
 mx.random.seed(rand_seed, ctx='all')
 np.random.seed(rand_seed)
-    
-########################################################################################################
 
 if "VERSION" in environ:    
     version = environ.get("VERSION")
@@ -61,20 +59,18 @@ if "DATASET" in environ:
     use_cluster = True
 else:
     dataset_name = "test"
-    logger.warning("DATASET not set, using: %s" % version)
+    logger.warning("DATASET not set, using: %s" % dataset_name)
     
 num_eval_samples = 1
 freq="M"
 prediction_length = 12
     
-########################################################################################################
-
-def load_plos_m3_data():
+def load_plos_m3_data(path):
     data = {}
     for dataset in ["train", "test"]:
         data[dataset] = []
         data["%s-nocat" % dataset] = []
-        with open("./m3_monthly/%s/data.json" % dataset) as fp:
+        with open("%s/%s/data.json" % (path, dataset)) as fp:
             for line in fp:
                ts_data = loads(line)
                data[dataset].append(ts_data)
@@ -186,8 +182,8 @@ def gluon_fcast(cfg):
         if np.isnan(err) or np.isinf(err):
             return {'loss': err, 'status': STATUS_FAIL, 'cfg' : cfg, 'build_url' : environ.get("BUILD_URL")}
     except Exception as e:
-        exc_str = '\n%s' % traceback.format_exc()
-        logger.error(exc_str)
+        exc_str = format_exc()
+        logger.error('\n%s' % exc_str)
         return {'loss': None, 'status': STATUS_FAIL, 'cfg' : cfg, 'exception': exc_str, 'build_url' : environ.get("BUILD_URL")}
         
     logger.info("sMAPE: %.3f" % float(float(err)*100))
@@ -335,6 +331,6 @@ def call_hyperopt():
     return space_eval(space, best) 
     
 if __name__ == "__main__":
-    data = load_plos_m3_data()
+    data = load_plos_m3_data("./m3_monthly")
     params = call_hyperopt()
     logger.info("Best params: %s" % params)
