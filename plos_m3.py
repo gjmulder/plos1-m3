@@ -244,7 +244,7 @@ def gluon_fcast(cfg):
 #			}
 
 def call_hyperopt():
-    dropout_rate = [0.05, 0.15]
+    dropout_rate = [0.08, 0.12]
 #    transformer_seqs = ['d', 'r', 'n', 'dn', 'nd', 'rn', 'nr', 'dr', 'rd',
 #                        'drn', 'dnr', 'rdn', 'rnd', 'nrd', 'ndr']
     space = {
@@ -261,14 +261,14 @@ def call_hyperopt():
 #        },
         'trainer' : {
             'max_epochs'                 : hp.choice('max_epochs', [250, 500, 1000, 2000]),
-            'num_batches_per_epoch'      : hp.choice('num_batches_per_epoch', [40, 80, 160, 320]),
-            'batch_size'                 : hp.choice('batch_size', [100, 200, 400, 800, 1200]),
-            'patience'                   : hp.choice('patience', [40, 80, 160, 320]),
+            'num_batches_per_epoch'      : hp.choice('num_batches_per_epoch', [60, 320, 640]),
+            'batch_size'                 : hp.choice('batch_size', [160, 180, 200, 220, 240]),
+            'patience'                   : hp.choice('patience', [60, 80, 100]),
             
-            'learning_rate'              : hp.uniform('learning_rate', 2e-03, 6e-03),
-            'learning_rate_decay_factor' : hp.uniform('learning_rate_decay_factor', 0.4, 0.6),
-            'minimum_learning_rate'      : hp.loguniform('minimum_learning_rate', log(1e-06), log(5e-06)),
-            'weight_decay'               : hp.uniform('weight_decay', 00.5e-08, 1.0e-08),
+            'learning_rate'              : hp.uniform('learning_rate', 1e-03, 3e-03),
+            'learning_rate_decay_factor' : hp.uniform('learning_rate_decay_factor', 0.5, 0.6),
+            'minimum_learning_rate'      : hp.loguniform('minimum_learning_rate', log(2e-06), log(5e-06)),
+            'weight_decay'               : hp.uniform('weight_decay', 5.0e-09, 15.0e-09),
         },
         'model' : hp.choice('model', [
 #            {
@@ -287,8 +287,8 @@ def call_hyperopt():
 #            },
             {
                 'type'                       : 'DeepAREstimator',
-                'num_cells'                  : hp.choice('num_cells', [5, 10, 20, 40, 80, 160, 320, 640]),
-                'num_layers'                 : hp.choice('num_layers', [1, 3, 5, 7, 9]),
+                'num_cells'                  : hp.choice('num_cells', [600, 800, 1000, 1200]),
+                'num_layers'                 : hp.choice('num_layers', [4, 5, 6]),
                 
                 'dar_dropout_rate'           : hp.uniform('dar_dropout_rate', dropout_rate[0], dropout_rate[1]),
             },

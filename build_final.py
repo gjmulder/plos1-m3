@@ -17,7 +17,7 @@ from plos_m3 import load_plos_m3_data, forecast
 import mxnet as mx
 import numpy as np
 
-rand_seed = 42
+rand_seed = 24
 mx.random.seed(rand_seed, ctx='all')
 np.random.seed(rand_seed)
 
@@ -38,7 +38,7 @@ if __name__ == "__main__":
 				"batch_size" : 200,
 				"learning_rate" : 0.002012125054989275,
 				"learning_rate_decay_factor" : 0.5694992744148958,
-				"max_epochs" : 1000,
+				"max_epochs" : 1500,
 				"minimum_learning_rate" : 0.000003350876288799133,
 				"num_batches_per_epoch" : 320,
 				"patience" : 80,
