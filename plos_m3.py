@@ -173,7 +173,7 @@ def forecast(data, cfg):
         ts_it, forecast_it, num_series=len(data['test'])
     )
  
-    logger.info("MASE : %.3f" % agg_metrics['MASE'])
+    logger.info("MASE : %.4f" % agg_metrics['MASE'])
     return agg_metrics['sMAPE']
 
 def gluon_fcast(cfg):        
@@ -186,7 +186,7 @@ def gluon_fcast(cfg):
         logger.error('\n%s' % exc_str)
         return {'loss': None, 'status': STATUS_FAIL, 'cfg' : cfg, 'exception': exc_str, 'build_url' : environ.get("BUILD_URL")}
         
-    logger.info("sMAPE: %.3f" % float(float(err)*100))
+    logger.info("sMAPE: %.4f" % float(float(err)*100))
     return {'loss': float(float(err)*100), 'status': STATUS_OK, 'cfg' : cfg, 'build_url' : environ.get("BUILD_URL")}
 
 #	"result" : {

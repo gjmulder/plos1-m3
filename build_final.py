@@ -5,6 +5,10 @@ Created on Tue Nov 19 08:17:31 2019
 
 @author: mulderg
 """
+
+# awk 'BEGIN {print "date.time,series,value"} /epoch_loss/ {print $1, $2 ",loss,", substr($NF, 14)} /Learning/ {print $1, $2 ",learning.rate,", $NF}'
+# ggplot(log_data) + geom_point(aes(x = date.time, y = value)) + facet_grid(series ~ ., scales = "free")
+
 from logging import basicConfig, getLogger
 #from logging import DEBUG as log_level
 from logging import INFO as log_level
@@ -46,4 +50,4 @@ if __name__ == "__main__":
 			}
 		}
     sMAPE = forecast(data, cfg)
-    logger.info("sMAPE: %.3f" % sMAPE)
+    logger.info("sMAPE: %.4f" % sMAPE)
