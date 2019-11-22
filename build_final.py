@@ -6,8 +6,8 @@ Created on Tue Nov 19 08:17:31 2019
 @author: mulderg
 """
 
-# awk 'BEGIN {print "date.time,series,value"} /epoch_loss/ {print $1, $2 ",loss,", substr($NF, 14)} /Learning/ {print $1, $2 ",learning.rate,", $NF}'
-# ggplot(log_data) + geom_point(aes(x = date.time, y = value)) + facet_grid(series ~ ., scales = "free")
+# awk 'BEGIN {print "date.time,series,value"} /epoch_loss/ {print $1, $2 ",loss,", substr($NF, 14)} /Learning/ {print $1, $2 ",learning.rate,", $NF}' nohup.log > final_run_training_loss.csv
+# read_csv("final_run_training_loss.csv") %>% filter(date.time > ymd_hms("2019-11-20 18:00:00")) %>% ggplot(aes(x = date.time, y = value)) + geom_point() + facet_grid(series ~ ., scales = "free") + scale_y_log10()
 
 from logging import basicConfig, getLogger
 #from logging import DEBUG as log_level
@@ -32,22 +32,39 @@ prediction_length = 12
 if __name__ == "__main__":
     data = load_plos_m3_data("./m3_monthly_all")
     cfg = {
-			"model" : {
-				"dar_dropout_rate" : 0.09083452710754299,
-				"num_cells" : 640,
+#			"model" : {
+#				"dar_dropout_rate" : 0.09083452710754299,
+#				"num_cells" : 640,
+#				"num_layers" : 5,
+#				"type" : "DeepAREstimator"
+#			},
+#			"trainer" : {
+#				"batch_size" : 200,
+#				"learning_rate" : 0.002012125054989275,
+#				"learning_rate_decay_factor" : 0.5694992744148958,
+#				"max_epochs" : 1500,
+#				"minimum_learning_rate" : 0.000003350876288799133,
+#				"num_batches_per_epoch" : 320,
+#				"patience" : 80,
+#				"weight_decay" : 9.70059777491261e-9
+#			}
+            "model" : {
+				"dar_dropout_rate" : 0.1059116635338751,
+				"num_cells" : 1000,
 				"num_layers" : 5,
 				"type" : "DeepAREstimator"
 			},
 			"trainer" : {
-				"batch_size" : 200,
-				"learning_rate" : 0.002012125054989275,
-				"learning_rate_decay_factor" : 0.5694992744148958,
-				"max_epochs" : 1500,
-				"minimum_learning_rate" : 0.000003350876288799133,
+				"batch_size" : 160,
+				"learning_rate" : 0.0016089266220730123,
+				"learning_rate_decay_factor" : 0.573950423419042,
+				"max_epochs" : 3000,
+				"minimum_learning_rate" : 0.000004885314833535221,
 				"num_batches_per_epoch" : 320,
 				"patience" : 80,
-				"weight_decay" : 9.70059777491261e-9
+				"weight_decay" : 9.101039588533137e-9
 			}
+
 		}
     sMAPE = forecast(data, cfg)
     logger.info("sMAPE: %.4f" % sMAPE)

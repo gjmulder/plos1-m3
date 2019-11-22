@@ -24,6 +24,11 @@ from os import environ
 from traceback import format_exc
 from math import log
 from json import loads
+from functools import partial
+
+from statsmodels.tsa.tsa import
+import.seasonal. as tsa
+import sklearn.preprocessing as skpp
 
 import mxnet as mx
 from gluonts.dataset.common import ListDataset
@@ -78,15 +83,70 @@ def load_plos_m3_data(path):
                del(ts_data_copy['feat_static_cat'])
                data["%s-nocat" % dataset].append(ts_data_copy)
     return data
+    
+def seasonality_test(ts, period, tcrit):
+    if (len(ts) < 3*period):
+        return False
+    else:
+        xacf = acf(ts)
+        clim = tcrit / sqrt(len(ts)) * sqrt(np.cumsum(np.arange(1, int(2*xacf**2))))
+        return (abs(xacf[period]) > clim[period])
 
+def define_xforms(cfg):
+    scaler = None
+    if cfg['preprocessing'] == 'min_max':
+        scaler = skpp.MinMaxScale
+    if cfg['preprocessing'] == 'max_abs':
+        scaler = skpp.mMinMaxScaler
+    if cfg['preprocessing'] == 'power_std':
+        scaler = skpp.PowerTransformer
+
+    if not cfg['deseasonalise']['model'] is not None:
+        decomp = partial(seasonal_decompose, model = cfg['deseasonalise'])
+    else:
+        decomp = None
+    
+    return (scaler, decomp)
+
+def xform_data(data, scaler, decomp):
+    scalers = []
+    decomps = []
+    xformed_data = []    
+    for ts in data:
+        if scaler is not None:
+            ts_scaler = scaler()
+            scaled_ts = ts_scaler.fit(ts.target)
+        else:
+            ts_scaler = None
+            scaled_ts = ts
+        scalers.append(ts_scaler)
+            
+        if decomp is not None and seasonality_test(ts, 12, 1.645):
+            ts_decomper = decomp()
+            decomped_ts = ts_decomper.fit(scaled_ts)
+        else:
+            ts_decomper = None
+            decomped_ts = scaled_ts
+        decomps.append(ts_decomper)
+        
+        xformed_data.append(decomped_ts)
+        
+    return (scalers, decomps, xformed_data)
+
+def unxform_data(xformed_data, scalers, decomps):
+    data = xformed_data
+    return data
+        
 def forecast(data, cfg):
     logger.info("Params: %s " % cfg)
+    (scaler, decomp) = define_xforms(cfg)
+    (scalers, decomps, xformed_data) = xform_data(data, scaler, decomp)
     
     if cfg['model']['type'] in ['SimpleFeedForwardEstimator', 'DeepFactorEstimator']:
         gluon_train = ListDataset(data['train-nocat'], freq=freq)
     else:
         gluon_train = ListDataset(data['train'], freq=freq)
-
+    
 #    trainer=Trainer(
 #        epochs=5,
 #    )
@@ -173,8 +233,9 @@ def forecast(data, cfg):
         ts_it, forecast_it, num_series=len(data['test'])
     )
  
-    logger.info("MASE : %.4f" % agg_metrics['MASE'])
-    return agg_metrics['sMAPE']
+    logger.info("MASE  : %.4f" % agg_metrics['MASE'])
+    logger.info("sMAPE : %.4f" % float(float(agg_metrics['sMAPE'])))
+    return agg_metrics['MASE']
 
 def gluon_fcast(cfg):        
     try:
@@ -186,68 +247,26 @@ def gluon_fcast(cfg):
         logger.error('\n%s' % exc_str)
         return {'loss': None, 'status': STATUS_FAIL, 'cfg' : cfg, 'exception': exc_str, 'build_url' : environ.get("BUILD_URL")}
         
-    logger.info("sMAPE: %.4f" % float(float(err)*100))
     return {'loss': float(float(err)*100), 'status': STATUS_OK, 'cfg' : cfg, 'build_url' : environ.get("BUILD_URL")}
 
-#	"result" : {
-#		"loss" : 9.331819882287,
-#		"status" : "ok",
-#		"cfg" : {
-#			"model" : {
-#				"act_type" : "softrelu",
-#				"inner_ff_dim_scale" : 3,
-#				"model_dim_heads" : [
-#					32,
-#					8
-#				],
-#				"post_seq" : "drn",
-#				"pre_seq" : "dn",
-#				"trans_dropout_rate" : 0.12807543050494463,
-#				"type" : "TransformerEstimator"
-#			},
-#			"trainer" : {
-#				"batch_size" : 400,
-#				"learning_rate" : 0.0037111496773567067,
-#				"learning_rate_decay_factor" : 0.7150082193650941,
-#				"max_epochs" : 1000,
-#				"minimum_learning_rate" : 0.0000018180755088500328,
-#				"num_batches_per_epoch" : 80,
-#				"patience" : 20,
-#				"weight_decay" : 1.2954081431877695e-8
-#			}
-#		},
-#	"result" : {
-#		"loss" : 9.316581672883357,
-#		"status" : "ok",
-#		"cfg" : {
-#			"model" : {
-#				"act_type" : "softrelu",
-#				"inner_ff_dim_scale" : 4,
-#				"model_dim_heads" : [
-#					64,
-#					16
-#				],
-#				"post_seq" : "drn",
-#				"pre_seq" : "dn",
-#				"trans_dropout_rate" : 0.07039011162041138,
-#				"type" : "TransformerEstimator"
-#			},
-#			"trainer" : {
-#				"batch_size" : 400,
-#				"learning_rate" : 0.00036665574690306155,
-#				"learning_rate_decay_factor" : 0.8161150287117496,
-#				"max_epochs" : 4000,
-#				"minimum_learning_rate" : 0.000002544457312575537,
-#				"num_batches_per_epoch" : 80,
-#				"patience" : 80,
-#				"weight_decay" : 7.096427973929391e-9
-#			}
-
 def call_hyperopt():
-    dropout_rate = [0.08, 0.12]
+    dropout_rate = {
+        'min' : 0.08,
+        'max' : 0.12
+    }
+    
 #    transformer_seqs = ['d', 'r', 'n', 'dn', 'nd', 'rn', 'nr', 'dr', 'rd',
 #                        'drn', 'dnr', 'rdn', 'rnd', 'nrd', 'ndr']
     space = {
+        'preprocessing' : hp.choice('preprocessing', ['default', 'min_max', 'max_abs', 'power_std']),
+        
+        'deseasonalise' : hp.choice('deseasonalise', [
+                                        {'model' : None},
+                                        {'model' : 'mult', 'coeff_as_xreg' : False},
+                                        {'model' : 'mult', 'coeff_as_xreg' : True},
+                                        {'model' : 'add', 'coeff_as_xreg' : False},
+                                        {'model' : 'add', 'coeff_as_xreg' : True}]),
+        
 #        'trainer' : {
 #            'max_epochs'                 : hp.choice('max_epochs', [125, 250, 500, 1000, 2000, 4000]),
 #            'num_batches_per_epoch'      : hp.choice('num_batches_per_epoch', [5, 10, 20, 40, 80]),
@@ -290,7 +309,7 @@ def call_hyperopt():
                 'num_cells'                  : hp.choice('num_cells', [600, 800, 1000, 1200]),
                 'num_layers'                 : hp.choice('num_layers', [4, 5, 6]),
                 
-                'dar_dropout_rate'           : hp.uniform('dar_dropout_rate', dropout_rate[0], dropout_rate[1]),
+                'dar_dropout_rate'           : hp.uniform('dar_dropout_rate', dropout_rate['min'], dropout_rate['max']),
             },
 #            {
 #                'type'                       : 'TransformerEstimator',
@@ -302,7 +321,7 @@ def call_hyperopt():
 #                'pre_seq'                    : hp.choice('pre_seq', ['dn']),
 #                'post_seq'                   : hp.choice('post_seq', ['drn']),
 #                'act_type'                   : hp.choice('act_type', ['softrelu']),               
-#                'trans_dropout_rate'         : hp.uniform('trans_dropout_rate', dropout_rate[0], dropout_rate[1]),
+#                'trans_dropout_rate'         : hp.uniform('trans_dropout_rate', dropout_rate['min'], dropout_rate['max']),
 #            },
 #            {
 #                'type'                       : 'TransformerEstimator',
@@ -311,7 +330,7 @@ def call_hyperopt():
 #                'pre_seq'                    : hp.choice('pre_seq', transformer_seqs),
 #                'post_seq'                   : hp.choice('post_seq', transformer_seqs),
 #                'act_type'                   : hp.choice('act_type', ['softrelu']),               
-#                'trans_dropout_rate'         : hp.uniform('trans_dropout_rate', dropout_rate[0], dropout_rate[1]),
+#                'trans_dropout_rate'         : hp.uniform('trans_dropout_rate', dropout_rate['min'], dropout_rate['max']),
 #            },
         ])
     }

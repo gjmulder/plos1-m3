@@ -1,4 +1,4 @@
-# library(lubridate)
+library(lubridate)
 library(tidyverse)
 
 mongo_data <- read_csv("mongo_results_plos1_m3.csv")
@@ -13,7 +13,7 @@ mongo_data %>%
   model_counts
 
 mongo_data %>%
-  mutate(training.duration.secs = as.numeric(end.time - start.time)) %>%
+  mutate(training.duration.hours = as.numeric(end.time - start.time)) %>%
   arrange(desc(sMAPE)) %>%
   inner_join(model_counts) %>%
   mutate(rank = 1:nrow(mongo_data)) %>%
@@ -22,20 +22,20 @@ mongo_data %>%
   mongo_plot_data
 
 dl_smape <- min(mongo_plot_data$sMAPE)
-ets_smape <- 7.12
-bnn_smape <- 7.96
+theta_smape <- 10.89
+bnn_iterative_smape <- 12.09
 
 gg <- ggplot(mongo_plot_data) +
   geom_hline(yintercept = dl_smape) +
-  geom_text(aes(x = 0, y = dl_smape - 0.3, hjust = "left"), size=3,
+  geom_text(aes(x = 0, y = dl_smape - 0.04, hjust = "left"), size=3,
             label = paste0("Deep Auto Regressive = ", round(dl_smape, 2))) +
-  geom_hline(yintercept = ets_smape) +
-  geom_text(aes(x = 0, y = ets_smape - 0.3, hjust = "left"), size=3,
-            label = paste0("ETS = ", ets_smape)) +
-  geom_hline(yintercept = bnn_smape) +
-  geom_text(aes(x = 0, y = bnn_smape - 0.3, hjust = "left"), size=3,
-            label = paste0("BNN = ", bnn_smape)) +
-  scale_y_log10()
+  geom_hline(yintercept = theta_smape) +
+  geom_text(aes(x = 0, y = theta_smape - 0.04, hjust = "left"), size=3,
+            label = paste0("Theta = ", theta_smape)) +
+  geom_hline(yintercept = bnn_iterative_smape) +
+  geom_text(aes(x = 0, y = bnn_iterative_smape - 0.04, hjust = "left"), size=3,
+            label = paste0("BNN Iterative = ", bnn_iterative_smape))
+  # scale_y_log10()
 
 gg_rank <-
   gg +
@@ -48,12 +48,13 @@ gg_rank <-
 
 gg_duration <-
   gg +
-  geom_point(aes(x = training.duration.secs, y = sMAPE, colour = model.type.count),
+  geom_point(aes(x = training.duration.hours, y = sMAPE, colour = model.type.count),
              size = 2) +
-  geom_smooth(aes(x = training.duration.secs, y = sMAPE), se = FALSE) +
-  xlab("Duration (secs)") +
+  # geom_line(aes(x = training.duration.hours, y = sMAPE)) +
+  xlab("Duration (hours)") +
   ylab("sMAPE (log scale)") +
   ggtitle("Trial duration versus model accuracy")
 
 print(gg_rank)
 print(gg_duration)
+
