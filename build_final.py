@@ -27,7 +27,7 @@ np.random.seed(rand_seed)
 
 num_eval_samples = 1
 freq="M"
-prediction_length = 12
+prediction_length = 18
     
 if __name__ == "__main__":
     data = load_plos_m3_data("./m3_monthly_all")

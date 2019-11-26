@@ -63,7 +63,7 @@ else:
     
 num_eval_samples = 1
 freq="M"
-prediction_length = 12
+prediction_length = 18
     
 def load_plos_m3_data(path):
     data = {}
@@ -189,60 +189,6 @@ def gluon_fcast(cfg):
     logger.info("sMAPE: %.4f" % float(float(err)*100))
     return {'loss': float(float(err)*100), 'status': STATUS_OK, 'cfg' : cfg, 'build_url' : environ.get("BUILD_URL")}
 
-#	"result" : {
-#		"loss" : 9.331819882287,
-#		"status" : "ok",
-#		"cfg" : {
-#			"model" : {
-#				"act_type" : "softrelu",
-#				"inner_ff_dim_scale" : 3,
-#				"model_dim_heads" : [
-#					32,
-#					8
-#				],
-#				"post_seq" : "drn",
-#				"pre_seq" : "dn",
-#				"trans_dropout_rate" : 0.12807543050494463,
-#				"type" : "TransformerEstimator"
-#			},
-#			"trainer" : {
-#				"batch_size" : 400,
-#				"learning_rate" : 0.0037111496773567067,
-#				"learning_rate_decay_factor" : 0.7150082193650941,
-#				"max_epochs" : 1000,
-#				"minimum_learning_rate" : 0.0000018180755088500328,
-#				"num_batches_per_epoch" : 80,
-#				"patience" : 20,
-#				"weight_decay" : 1.2954081431877695e-8
-#			}
-#		},
-#	"result" : {
-#		"loss" : 9.316581672883357,
-#		"status" : "ok",
-#		"cfg" : {
-#			"model" : {
-#				"act_type" : "softrelu",
-#				"inner_ff_dim_scale" : 4,
-#				"model_dim_heads" : [
-#					64,
-#					16
-#				],
-#				"post_seq" : "drn",
-#				"pre_seq" : "dn",
-#				"trans_dropout_rate" : 0.07039011162041138,
-#				"type" : "TransformerEstimator"
-#			},
-#			"trainer" : {
-#				"batch_size" : 400,
-#				"learning_rate" : 0.00036665574690306155,
-#				"learning_rate_decay_factor" : 0.8161150287117496,
-#				"max_epochs" : 4000,
-#				"minimum_learning_rate" : 0.000002544457312575537,
-#				"num_batches_per_epoch" : 80,
-#				"patience" : 80,
-#				"weight_decay" : 7.096427973929391e-9
-#			}
-
 def call_hyperopt():
     dropout_rate = [0.08, 0.12]
 #    transformer_seqs = ['d', 'r', 'n', 'dn', 'nd', 'rn', 'nr', 'dr', 'rd',
@@ -261,12 +207,12 @@ def call_hyperopt():
 #        },
         'trainer' : {
             'max_epochs'                 : hp.choice('max_epochs', [250, 500, 1000, 2000]),
-            'num_batches_per_epoch'      : hp.choice('num_batches_per_epoch', [60, 320, 640]),
+            'num_batches_per_epoch'      : hp.choice('num_batches_per_epoch', [160, 320, 640]),
             'batch_size'                 : hp.choice('batch_size', [160, 180, 200, 220, 240]),
             'patience'                   : hp.choice('patience', [60, 80, 100]),
             
             'learning_rate'              : hp.uniform('learning_rate', 1e-03, 3e-03),
-            'learning_rate_decay_factor' : hp.uniform('learning_rate_decay_factor', 0.5, 0.6),
+            'learning_rate_decay_factor' : hp.uniform('learning_rate_decay_factor', 0.5, 0.8),
             'minimum_learning_rate'      : hp.loguniform('minimum_learning_rate', log(2e-06), log(5e-06)),
             'weight_decay'               : hp.uniform('weight_decay', 5.0e-09, 15.0e-09),
         },
