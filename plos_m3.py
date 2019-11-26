@@ -47,7 +47,7 @@ if "VERSION" in environ:
     
     use_cluster = True
 else:
-    version = "test"
+    version = "final"
     logger.warning("VERSION not set, using: %s" % version)
     
     use_cluster = False
@@ -58,7 +58,7 @@ if "DATASET" in environ:
     
     use_cluster = True
 else:
-    dataset_name = "test"
+    dataset_name = "final"
     logger.warning("DATASET not set, using: %s" % dataset_name)
     
 num_eval_samples = 1
@@ -88,7 +88,7 @@ def forecast(data, cfg):
         gluon_train = ListDataset(data['train'], freq=freq)
 
 #    trainer=Trainer(
-#        epochs=5,
+#        epochs=2,
 #    )
 
     trainer=Trainer(
@@ -173,8 +173,9 @@ def forecast(data, cfg):
         ts_it, forecast_it, num_series=len(data['test'])
     )
  
-    logger.info("MASE : %.4f" % agg_metrics['MASE'])
-    return agg_metrics['sMAPE']
+    logger.info("MASE  : %.6f" % agg_metrics['MASE'])
+    logger.info("sMAPE : %.6f" % float(float(agg_metrics['sMAPE'])*100))
+    return agg_metrics['MASE']
 
 def gluon_fcast(cfg):        
     try:
@@ -186,7 +187,7 @@ def gluon_fcast(cfg):
         logger.error('\n%s' % exc_str)
         return {'loss': None, 'status': STATUS_FAIL, 'cfg' : cfg, 'exception': exc_str, 'build_url' : environ.get("BUILD_URL")}
         
-    logger.info("sMAPE: %.4f" % float(float(err)*100))
+    logger.info("Loss: %.6f" % err)
     return {'loss': float(float(err)*100), 'status': STATUS_OK, 'cfg' : cfg, 'build_url' : environ.get("BUILD_URL")}
 
 def call_hyperopt():
@@ -234,6 +235,7 @@ def call_hyperopt():
             {
                 'type'                       : 'DeepAREstimator',
                 'num_cells'                  : hp.choice('num_cells', [600, 800, 1000, 1200]),
+#                'num_cells'                  : hp.choice('num_cells', [6, 8, 10, 12]),
                 'num_layers'                 : hp.choice('num_layers', [4, 5, 6]),
                 
                 'dar_dropout_rate'           : hp.uniform('dar_dropout_rate', dropout_rate[0], dropout_rate[1]),
