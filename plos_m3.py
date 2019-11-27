@@ -22,12 +22,12 @@ from hyperopt import fmin, tpe, hp, space_eval, STATUS_FAIL, STATUS_OK
 from hyperopt.mongoexp import MongoTrials
 from os import environ
 from traceback import format_exc
-from math import log
+from math import log, sqrt
 from json import loads
 from functools import partial
 
-from statsmodels.tsa.tsa import
-import.seasonal. as tsa
+import statsmodels.api as sm
+from statsmodels.tsa.stattools import acf
 import sklearn.preprocessing as skpp
 
 import mxnet as mx
@@ -68,7 +68,7 @@ else:
     
 num_eval_samples = 1
 freq="M"
-prediction_length = 12
+prediction_length = 18
     
 def load_plos_m3_data(path):
     data = {}
@@ -102,26 +102,28 @@ def define_xforms(cfg):
         scaler = skpp.PowerTransformer
 
     if not cfg['deseasonalise']['model'] is not None:
-        decomp = partial(seasonal_decompose, model = cfg['deseasonalise'])
+        decomp = partial(sm.tsa.seasonal_decompose, model = cfg['deseasonalise'])
     else:
         decomp = None
     
     return (scaler, decomp)
 
-def xform_data(data, scaler, decomp):
+def xform_data(data, cfg):
+    (scaler, decomp) = define_xforms(cfg)
+
     scalers = []
     decomps = []
     xformed_data = []    
-    for ts in data:
+    for ts in xformed_data['train']:
         if scaler is not None:
             ts_scaler = scaler()
             scaled_ts = ts_scaler.fit(ts.target)
         else:
             ts_scaler = None
-            scaled_ts = ts
+            scaled_ts = ts.target
         scalers.append(ts_scaler)
             
-        if decomp is not None and seasonality_test(ts, 12, 1.645):
+        if decomp is not None and seasonality_test(ts.target, 12, 1.645):
             ts_decomper = decomp()
             decomped_ts = ts_decomper.fit(scaled_ts)
         else:
@@ -139,13 +141,13 @@ def unxform_data(xformed_data, scalers, decomps):
         
 def forecast(data, cfg):
     logger.info("Params: %s " % cfg)
-    (scaler, decomp) = define_xforms(cfg)
-    (scalers, decomps, xformed_data) = xform_data(data, scaler, decomp)
+
+#    (scalers, decomps, xformed_data) = xform_data(data, cfg)
     
-    if cfg['model']['type'] in ['SimpleFeedForwardEstimator', 'DeepFactorEstimator']:
-        gluon_train = ListDataset(data['train-nocat'], freq=freq)
-    else:
-        gluon_train = ListDataset(data['train'], freq=freq)
+#    if cfg['model']['type'] in ['SimpleFeedForwardEstimator', 'DeepFactorEstimator']:
+#        gluon_train = ListDataset(data['train-nocat'], freq=freq)
+#    else:
+    gluon_train = ListDataset(data['train'], freq=freq)
     
 #    trainer=Trainer(
 #        epochs=5,
