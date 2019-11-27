@@ -188,35 +188,35 @@ def gluon_fcast(cfg):
         return {'loss': None, 'status': STATUS_FAIL, 'cfg' : cfg, 'exception': exc_str, 'build_url' : environ.get("BUILD_URL")}
         
     logger.info("Loss: %.6f" % err)
-    return {'loss': float(float(err)*100), 'status': STATUS_OK, 'cfg' : cfg, 'build_url' : environ.get("BUILD_URL")}
+    return {'loss': err, 'status': STATUS_OK, 'cfg' : cfg, 'build_url' : environ.get("BUILD_URL")}
 
 def call_hyperopt():
     dropout_rate = [0.08, 0.12]
 #    transformer_seqs = ['d', 'r', 'n', 'dn', 'nd', 'rn', 'nr', 'dr', 'rd',
 #                        'drn', 'dnr', 'rdn', 'rnd', 'nrd', 'ndr']
     space = {
-#        'trainer' : {
-#            'max_epochs'                 : hp.choice('max_epochs', [125, 250, 500, 1000, 2000, 4000]),
-#            'num_batches_per_epoch'      : hp.choice('num_batches_per_epoch', [5, 10, 20, 40, 80]),
-#            'batch_size'                 : hp.choice('batch_size', [25, 50, 100, 200, 400]),
-#            'patience'                   : hp.choice('patience', [20, 40, 80]),
-#            
-#            'learning_rate'              : hp.uniform('learning_rate', 1e-04, 1e-02),
-#            'learning_rate_decay_factor' : hp.uniform('learning_rate_decay_factor', 0.4, 0.9),
-#            'minimum_learning_rate'      : hp.loguniform('minimum_learning_rate', log(1e-06), log(0.5e-04)),
-#            'weight_decay'               : hp.uniform('weight_decay', 00.5e-08, 10.0e-08),
-#        },
         'trainer' : {
-            'max_epochs'                 : hp.choice('max_epochs', [250, 500, 1000, 2000]),
-            'num_batches_per_epoch'      : hp.choice('num_batches_per_epoch', [160, 320, 640]),
-            'batch_size'                 : hp.choice('batch_size', [160, 180, 200, 220, 240]),
-            'patience'                   : hp.choice('patience', [60, 80, 100]),
+            'max_epochs'                 : hp.choice('max_epochs', [125, 250, 500, 1000]),
+            'num_batches_per_epoch'      : hp.choice('num_batches_per_epoch', [5, 10, 20, 40, 80]),
+            'batch_size'                 : hp.choice('batch_size', [25, 50, 100, 200, 400]),
+            'patience'                   : hp.choice('patience', [20, 40, 80]),
             
-            'learning_rate'              : hp.uniform('learning_rate', 1e-03, 3e-03),
-            'learning_rate_decay_factor' : hp.uniform('learning_rate_decay_factor', 0.5, 0.8),
-            'minimum_learning_rate'      : hp.loguniform('minimum_learning_rate', log(2e-06), log(5e-06)),
-            'weight_decay'               : hp.uniform('weight_decay', 5.0e-09, 15.0e-09),
+            'learning_rate'              : hp.uniform('learning_rate', 1e-04, 1e-02),
+            'learning_rate_decay_factor' : hp.uniform('learning_rate_decay_factor', 0.4, 0.9),
+            'minimum_learning_rate'      : hp.loguniform('minimum_learning_rate', log(1e-06), log(0.5e-04)),
+            'weight_decay'               : hp.uniform('weight_decay', 00.5e-08, 10.0e-08),
         },
+#        'trainer' : {
+#            'max_epochs'                 : hp.choice('max_epochs', [250, 500, 1000, 2000]),
+#            'num_batches_per_epoch'      : hp.choice('num_batches_per_epoch', [160, 320, 640]),
+#            'batch_size'                 : hp.choice('batch_size', [160, 180, 200, 220, 240]),
+#            'patience'                   : hp.choice('patience', [60, 80, 100]),
+#            
+#            'learning_rate'              : hp.uniform('learning_rate', 1e-03, 3e-03),
+#            'learning_rate_decay_factor' : hp.uniform('learning_rate_decay_factor', 0.5, 0.8),
+#            'minimum_learning_rate'      : hp.loguniform('minimum_learning_rate', log(2e-06), log(5e-06)),
+#            'weight_decay'               : hp.uniform('weight_decay', 5.0e-09, 15.0e-09),
+#        },
         'model' : hp.choice('model', [
 #            {
 #                'type'                       : 'SimpleFeedForwardEstimator',
@@ -234,24 +234,24 @@ def call_hyperopt():
 #            },
             {
                 'type'                       : 'DeepAREstimator',
-                'num_cells'                  : hp.choice('num_cells', [600, 800, 1000, 1200]),
-#                'num_cells'                  : hp.choice('num_cells', [6, 8, 10, 12]),
-                'num_layers'                 : hp.choice('num_layers', [4, 5, 6]),
+#                'num_cells'                  : hp.choice('num_cells', [600, 800, 1000, 1200]),
+                'num_cells'                  : hp.choice('num_cells', [8, 16, 32, 64, 128, 256, 512]),
+                'num_layers'                 : hp.choice('num_layers', [1, 3, 5, 7, 9]),
                 
                 'dar_dropout_rate'           : hp.uniform('dar_dropout_rate', dropout_rate[0], dropout_rate[1]),
             },
-#            {
-#                'type'                       : 'TransformerEstimator',
-#                'model_dim_heads'            : hp.choice('model_dim_heads', [[2, 2], [4, 2], [8, 2], [16, 2], [32, 2], [64, 2],
-#                                                                             [4, 4], [8, 4], [16, 4], [32, 4], [64, 4],
-#                                                                             [8, 8], [16, 8], [32, 8], [64, 8],
-#                                                                             [16, 16], [32, 16], [64, 16]]),
-#                'inner_ff_dim_scale'         : hp.choice('inner_ff_dim_scale', [2, 3, 4, 5]),
-#                'pre_seq'                    : hp.choice('pre_seq', ['dn']),
-#                'post_seq'                   : hp.choice('post_seq', ['drn']),
-#                'act_type'                   : hp.choice('act_type', ['softrelu']),               
-#                'trans_dropout_rate'         : hp.uniform('trans_dropout_rate', dropout_rate[0], dropout_rate[1]),
-#            },
+            {
+                'type'                       : 'TransformerEstimator',
+                'model_dim_heads'            : hp.choice('model_dim_heads', [[2, 2], [4, 2], [8, 2], [16, 2], [32, 2], [64, 2],
+                                                                             [4, 4], [8, 4], [16, 4], [32, 4], [64, 4],
+                                                                             [8, 8], [16, 8], [32, 8], [64, 8],
+                                                                             [16, 16], [32, 16], [64, 16]]),
+                'inner_ff_dim_scale'         : hp.choice('inner_ff_dim_scale', [2, 3, 4, 5]),
+                'pre_seq'                    : hp.choice('pre_seq', ['dn']),
+                'post_seq'                   : hp.choice('post_seq', ['drn']),
+                'act_type'                   : hp.choice('act_type', ['softrelu']),               
+                'trans_dropout_rate'         : hp.uniform('trans_dropout_rate', dropout_rate[0], dropout_rate[1]),
+            },
 #            {
 #                'type'                       : 'TransformerEstimator',
 #                'model_dim_heads'            : hp.choice('model_dim_heads', [[32, 8], [64, 16], [128, 32]]),
