@@ -74,30 +74,30 @@ def load_plos_m3_data(path):
     data = {}
     for dataset in ["train", "test"]:
         data[dataset] = []
-        data["%s-nocat" % dataset] = []
+#        data["%s-nocat" % dataset] = []
         with open("%s/%s/data.json" % (path, dataset)) as fp:
             for line in fp:
                ts_data = loads(line)
                data[dataset].append(ts_data)
-               ts_data_copy = ts_data.copy()
-               del(ts_data_copy['feat_static_cat'])
-               data["%s-nocat" % dataset].append(ts_data_copy)
+#               ts_data_copy = ts_data.copy()
+#               del(ts_data_copy['feat_static_cat'])
+#               data["%s-nocat" % dataset].append(ts_data_copy)
     return data
     
 def seasonality_test(ts, period, tcrit):
     if (len(ts) < 3*period):
         return False
     else:
-        xacf = acf(ts)
-        clim = tcrit / sqrt(len(ts)) * sqrt(np.cumsum(np.arange(1, int(2*xacf**2))))
-        return (abs(xacf[period]) > clim[period])
+        xacf = acf(ts)[1:]
+        clim = tcrit / np.sqrt(len(ts)) * np.sqrt(np.cumsum(np.concatenate([np.array([1]), 2 * xacf**2])))
+        return (abs(xacf[period-1]) > clim[period-1])
 
 def define_xforms(cfg):
     scaler = None
     if cfg['preprocessing'] == 'min_max':
         scaler = skpp.MinMaxScale
     if cfg['preprocessing'] == 'max_abs':
-        scaler = skpp.mMinMaxScaler
+        scaler = skpp.MaxAbsScaler
     if cfg['preprocessing'] == 'power_std':
         scaler = skpp.PowerTransformer
 
@@ -142,7 +142,7 @@ def unxform_data(xformed_data, scalers, decomps):
 def forecast(data, cfg):
     logger.info("Params: %s " % cfg)
 
-#    (scalers, decomps, xformed_data) = xform_data(data, cfg)
+    (scalers, decomps, xformed_data) = xform_data(data, cfg)
     
 #    if cfg['model']['type'] in ['SimpleFeedForwardEstimator', 'DeepFactorEstimator']:
 #        gluon_train = ListDataset(data['train-nocat'], freq=freq)
