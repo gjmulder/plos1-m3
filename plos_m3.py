@@ -15,18 +15,15 @@ basicConfig(level = log_level,
 logger = getLogger(__name__)
 
 import numpy as np
-#import pandas as pd
+import pandas as pd
 from datetime import date
+from math import sqrt
 
 from hyperopt import fmin, tpe, hp, space_eval, STATUS_FAIL, STATUS_OK
 from hyperopt.mongoexp import MongoTrials
 from os import environ
 from traceback import format_exc
 from json import loads
-
-import statsmodels.api as sm
-from statsmodels.tsa.stattools import acf
-import sklearn.preprocessing as preprocessing
 
 import mxnet as mx
 from gluonts.dataset.common import ListDataset
@@ -69,123 +66,119 @@ freq = "M"
 freq_n = 12
 
 prediction_length = 18
-    
-def load_plos_m3_data(path):
-    data = {}
-    for dataset in ["train", "test"]:
-        data[dataset] = []
-#        data["%s-nocat" % dataset] = []
-        with open("%s/%s/data.json" % (path, dataset)) as fp:
-            for line in fp:
-               ts_data = loads(line)
-               data[dataset].append(ts_data)
-#               ts_data_copy = ts_data.copy()
-#               del(ts_data_copy['feat_static_cat'])
-#               data["%s-nocat" % dataset].append(ts_data_copy)
-    return data
-    
-def is_seasonal(ts, period, tcrit):
-    if (len(ts) < 3*period):
-        return False
-    else:
-        xacf = acf(ts)[1:]
-        clim = tcrit / np.sqrt(len(ts)) * np.sqrt(np.cumsum(np.concatenate([np.array([1]), 2 * xacf**2])))
-        return (abs(xacf[period-1]) > clim[period-1])
-
-#def choose_scaler(cfg):
-#    scaler_type = None
-#    if cfg['preprocessing'] == 'min_max':
-#        scaler_type = preprocessing.MinMaxScaler
-#    if cfg['preprocessing'] == 'max_abs':
-#        scaler_type = preprocessing.MaxAbsScaler
-#    if cfg['preprocessing'] == 'power_std':
-#        scaler_type = preprocessing.PowerTransformer 
-#    return scaler_type
-
-def mult_deseason(ts, coeff):
-    logger.info("TS: %s" % ts)
-    rep_coeff = np.tile(coeff, int(len(ts) / freq_n) + 1)
-    deasoned_ts = ts / rep_coeff[:len(ts)]
-    logger.info("Deseasoned: %s" % deasoned_ts)
-    return deasoned_ts
-
-def mult_reseason(ts, coeff):
-    logger.info("Deseasoned: %s" % ts)
-    rep_coeff = np.tile(coeff, int(len(ts) / freq_n) + 1)
-    reasoned_ts = ts * rep_coeff[:len(ts)]
-    logger.info("Reasoned: %s" % reasoned_ts)
-    return reasoned_ts
-
-#def xform_one(deseasonal_model, scaler, train_ts, test_ts):
-def xform_one(deseasonal_model, train_ts, test_ts):
-    # Deseasonalise training data, apply training seasonal coeffs to test data
-    logger.info("Seasonal: %s" % is_seasonal(np.array(train_ts), freq_n, 1.645))
-    if (deseasonal_model is not None) and is_seasonal(np.array(train_ts), freq_n, 1.645):
-        decomped_train_ts = sm.tsa.seasonal_decompose(train_ts, model = deseasonal_model, freq=freq_n)
-        train_seasonal_coeff = decomped_train_ts.seasonal[:freq_n]
-    else:
-        train_seasonal_coeff = np.ones(freq_n)
-    logger.info("train_seasonal_coeff: %s" % train_seasonal_coeff)
-
-    deseasoned_train_ts = mult_deseason(train_ts, train_seasonal_coeff)
-    deseasoned_test_ts = mult_deseason(test_ts, train_seasonal_coeff)
-    
-    # TBD: Scale training data, apply training scaler to test data
-#    if scaler is not None:
-#        train_scaler = scaler()
-#        scaled_train_ts = train_scaler.fit_transform(deseasoned_train_ts.reshape(-1, 1))
-#        scaled_test_ts  = deseasoned_test_ts.reshape(-1, 1) # fix me
-#    else:
-#        train_scaler = None
-    scaled_train_ts = deseasoned_train_ts
-    scaled_test_ts = deseasoned_test_ts
-    logger.info("Scaled train: %s" % scaled_train_ts.tolist())
-    logger.info("Scaled test : %s" % scaled_test_ts.tolist())
-    
-#    return train_seasonal_coeff, train_scaler, scaled_train_ts, scaled_test_ts
-    return train_seasonal_coeff, scaled_train_ts, scaled_test_ts
-    
-def xform(data, cfg):
-    train_seasonal_coeffs = []    
-#    train_scalers = []
-#    scaler_type = choose_scaler(cfg)
-    xformed_data = {
-            'train' : [],
-            'test' : []
-    }
-    
-    for idx in range(len(data['train'])):
-        logger.info("\n%d" % idx)
-        logger.info(data['train'][idx])
-        logger.info(data['test'][idx])
         
-        (train_seasonal_coeff, train_scaler, scaled_train_ts, scaled_test_ts) = xform_one(cfg['deseasonalise']['model'], 
-#                                                                                          scaler_type,
-                                                                                          data['train'][idx]['target'],
-                                                                                          data['test'][idx]['target'])
-        train_seasonal_coeffs.append(train_seasonal_coeff)
-#        train_scalers.append(train_scaler)
-            
-        xformed_data['train'].append({
-            'start'           : data['train'][idx]['start'],
-            'target'          : scaled_train_ts.reshape(-1).tolist(),
-            'feat_static_cat' : data['train'][idx]['feat_static_cat'],
-        })
-        logger.info(xformed_data['train'][idx])
+def detrend(insample_data):
+    """
+    Calculates a & b parameters of LRL
+    :param insample_data:
+    :return:
+    """
+    x = np.arange(len(insample_data))
+    a, b = np.polyfit(x, insample_data, 1)
+    return a, b
 
-        xformed_data['test'].append({
-            'start'           : data['test'][idx]['start'],
-            'target'          : scaled_test_ts.reshape(-1).tolist(), 
-            'feat_static_cat' : data['test'][idx]['feat_static_cat'],
-        })
-        logger.info(xformed_data['test'][idx])
-        
-#    return xformed_data, train_seasonal_coeffs, train_scalers
-    return xformed_data, train_seasonal_coeffs
 
-def unxform_data(xformed_data, train_decomps, train_scalers):
-    data = xformed_data
-    return data
+def deseasonalize(original_ts, ppy):
+    """
+    Calculates and returns seasonal indices
+    :param original_ts: original data
+    :param ppy: periods per year
+    :return:
+    """
+    """
+    # === get in-sample data
+    original_ts = original_ts[:-out_of_sample]
+    """
+    if seasonality_test(original_ts, ppy):
+        # print("seasonal")
+        # ==== get moving averages
+        ma_ts = moving_averages(original_ts, ppy)
+
+        # ==== get seasonality indices
+        le_ts = original_ts * 100 / ma_ts
+        le_ts = np.hstack((le_ts, np.full((ppy - (len(le_ts) % ppy)), np.nan)))
+        le_ts = np.reshape(le_ts, (-1, ppy))
+        si = np.nanmean(le_ts, 0)
+        norm = np.sum(si) / (ppy * 100)
+        si = si / norm
+    else:
+        # print("NOT seasonal")
+        si = np.full(ppy, 100)
+
+    return si
+
+
+def moving_averages(ts_init, window):
+    """
+    Calculates the moving averages for a given TS
+    :param ts_init: the original time series
+    :param window: window length
+    :return: moving averages ts
+    """
+    """
+    As noted by Professor Isidro Lloret Galiana:
+    line 82:
+    if len(ts_init) % 2 == 0:
+    
+    should be changed to
+    if window % 2 == 0:
+    
+    This change has a minor (less then 0.05%) impact on the calculations of the seasonal indices
+    In order for the results to be fully replicable this change is not incorporated into the code below
+    """
+    
+    if len(ts_init) % 2 == 0:
+        ts_ma = pd.rolling_mean(ts_init, window, center=True)
+        ts_ma = pd.rolling_mean(ts_ma, 2, center=True)
+        ts_ma = np.roll(ts_ma, -1)
+    else:
+        ts_ma = pd.rolling_mean(ts_init, window, center=True)
+
+    return ts_ma
+
+def acf(data, k):
+    """
+    Autocorrelation function
+    :param data: time series
+    :param k: lag
+    :return:
+    """
+    m = np.mean(data)
+    s1 = 0
+    for i in range(k, len(data)):
+        s1 = s1 + ((data[i] - m) * (data[i - k] - m))
+
+    s2 = 0
+    for i in range(0, len(data)):
+        s2 = s2 + ((data[i] - m) ** 2)
+
+    return float(s1 / s2)
+
+def seasonality_test(original_ts, ppy):
+    """
+    Seasonality test
+    :param original_ts: time series
+    :param ppy: periods per year
+    :return: boolean value: whether the TS is seasonal
+    """
+    s = acf(original_ts, 1)
+    for i in range(2, ppy):
+        s = s + (acf(original_ts, i) ** 2)
+
+    limit = 1.645 * (sqrt((1 + 2 * s) / len(original_ts)))
+
+    return (abs(acf(original_ts, ppy))) > limit
+
+def smape(a, b):
+    """
+    Calculates sMAPE
+    :param a: actual values
+    :param b: predicted values
+    :return: sMAPE
+    """
+    a = np.reshape(a, (-1,))
+    b = np.reshape(b, (-1,))
+    return np.mean(2.0 * np.abs(a - b) / (np.abs(a) + np.abs(b))).item()
 
 def mase(insample, y_test, y_hat_test, freq):
     """
@@ -203,18 +196,49 @@ def mase(insample, y_test, y_hat_test, freq):
     masep = np.mean(abs(insample[freq:] - y_hat_naive))
 
     return np.mean(abs(y_test - y_hat_test)) / masep
+
+#######################################################################################
+    
+def load_plos_m3_data(path):
+    data = {}
+    for dataset in ["train", "test"]:
+        data[dataset] = []
+        data["%s-nocat" % dataset] = []
+        with open("%s/%s/data.json" % (path, dataset)) as fp:
+            for line in fp:
+               ts_data = loads(line)               
+               data[dataset].append(ts_data)
+               
+    season_coeffs = []          
+    for idx in range(len(data["train"])):
+        ts_train = data["train"][idx]["target"]
+        ts_test  = data["test"][idx]["target"]
+        
+        # determine seasonality coeffs
+        seasonality_in = deseasonalize(ts_train, freq_n)
+        season_coeffs.append(seasonality_in)
+        
+        #  deaseasonalise training data
+        for i in range(0, len(ts_train)):
+            ts_train[i] = ts_train[i] * 100 / seasonality_in[i % freq_n]
+            
+        #  deaseasonalise training data
+        for i in range(0, len(ts_test)):
+            ts_test[i] = ts_test[i] * 100 / seasonality_in[i % freq_n]
+            
+        data["train"][idx]["target"] = ts_train
+        data["test"][idx]["target"] = ts_test
+        
+    return data, season_coeffs
      
 def forecast(data, cfg):
     logger.info("Params: %s " % cfg)
     use_default_scaler = (cfg['preprocessing'] is None)
-    
-#    (xformed_data, train_seasonal_coeffs, train_scalers) = xform(data, cfg)
-    (xformed_data, train_seasonal_coeffs) = xform(data, cfg)
-    
-#    if cfg['model']['type'] in ['SimpleFeedForwardEstimator', 'DeepFactorEstimator']:
-#        gluon_train = ListDataset(data['train-nocat'], freq=freq)
-#    else:
-    gluon_train = ListDataset(xformed_data['train'], freq=freq)
+        
+    if cfg['model']['type'] in ['SimpleFeedForwardEstimator', 'DeepFactorEstimator']:
+        gluon_train = ListDataset(data['train-nocat'], freq=freq)
+    else:
+        gluon_train = ListDataset(data['train'], freq=freq)
     
     trainer=Trainer(
         epochs=5,
@@ -304,13 +328,14 @@ def forecast(data, cfg):
         num_eval_samples=1,
     )
     
-    agg_metrics, item_metrics = Evaluator()(
-        ts_it, forecast_it, num_series=len(data['test'])
-    )
- 
+    agg_metrics, item_metrics = Evaluator()(ts_it, forecast_it, num_series=len(data['test']))
     logger.info("GluonTS  MASE : %.6f" % agg_metrics['MASE'])
     logger.info("GluonTS sMAPE : %.6f" % 100 * float(float(agg_metrics['sMAPE'])))
 
+#    # add seasonality
+#    for i in range(0, len(ts)):
+#        ts[i] = ts[i] * seasonality_in[i % freq] / 100
+        
     err = mase()
     logger.info("unxformed MASE : %.6f" % err)
     return err

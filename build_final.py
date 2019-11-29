@@ -32,7 +32,7 @@ freq="M"
 prediction_length = 18
     
 if __name__ == "__main__":
-    data = load_plos_m3_data("./m3_monthly_all")
+    data, season_coeffs = load_plos_m3_data("./m3_monthly_all")
     cfg = {
              "preprocessing" : None,
              "deseasonalise" : {'model' : None}, # {'model' : 'mult'},
