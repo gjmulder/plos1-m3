@@ -28,18 +28,19 @@ mx.random.seed(rand_seed, ctx='all')
 np.random.seed(rand_seed)
 
 num_eval_samples = 1
-freq="M"
+freq_pd = "M"
+freq = 12
 prediction_length = 18
     
 if __name__ == "__main__":
     data, season_coeffs = load_plos_m3_data("./m3_monthly_all")
     cfg = {
-             "preprocessing" : None,
-             "deseasonalise" : {'model' : None}, # {'model' : 'mult'},
+#             "preprocessing" : None,
+#             "deseasonalise" : {'model' : None}, # {'model' : 'mult'},
 			"model" : {
 				"dar_dropout_rate" : 0.1059116635338751,
-				"num_cells" : 1000,
-				"num_layers" : 5,
+				"num_cells" : 10,
+				"num_layers" : 1,
 				"type" : "DeepAREstimator"
 			},
 			"trainer" : {
@@ -53,5 +54,5 @@ if __name__ == "__main__":
 				"weight_decay" : 9.101039588533137e-9
 			}
 		}
-    loss = forecast(data, cfg)
+    loss = forecast(data, season_coeffs, cfg)
     logger.info("Loss: %.4f" % loss)

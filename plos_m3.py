@@ -18,6 +18,7 @@ import numpy as np
 import pandas as pd
 from datetime import date
 from math import sqrt
+#from statistics import mean
 
 from hyperopt import fmin, tpe, hp, space_eval, STATUS_FAIL, STATUS_OK
 from hyperopt.mongoexp import MongoTrials
@@ -62,9 +63,8 @@ else:
     logger.warning("DATASET not set, using: %s" % dataset_name)
     
 num_eval_samples = 1
-freq = "M"
-freq_n = 12
-
+freq_pd = "M"
+freq = 12
 prediction_length = 18
         
 def detrend(insample_data):
@@ -127,13 +127,20 @@ def moving_averages(ts_init, window):
     In order for the results to be fully replicable this change is not incorporated into the code below
     """
     
-    if len(ts_init) % 2 == 0:
-        ts_ma = pd.rolling_mean(ts_init, window, center=True)
-        ts_ma = pd.rolling_mean(ts_ma, 2, center=True)
-        ts_ma = np.roll(ts_ma, -1)
-    else:
-        ts_ma = pd.rolling_mean(ts_init, window, center=True)
+#    if len(ts_init) % 2 == 0:
+#        ts_ma = pd.rolling_mean(ts_init, window, center=True)
+#        ts_ma = pd.rolling_mean(ts_ma, 2, center=True)
+#        ts_ma = np.roll(ts_ma, -1)
+#    else:
+#        ts_ma = pd.rolling_mean(ts_init, window, center=True)
 
+    if window % 2 == 0:
+        ts_ma = pd.Series(ts_init).rolling(window, center=True).mean()
+        ts_ma = ts_ma.rolling(2, center=True).mean()
+        ts_ma = np.roll(ts_ma.values, -1)
+    else:
+        ts_ma = pd.Series(ts_init).rolling(window, center=True).values
+        
     return ts_ma
 
 def acf(data, k):
@@ -215,52 +222,54 @@ def load_plos_m3_data(path):
         ts_test  = data["test"][idx]["target"]
         
         # determine seasonality coeffs
-        seasonality_in = deseasonalize(ts_train, freq_n)
+        seasonality_in = deseasonalize(np.array(ts_train), freq)
         season_coeffs.append(seasonality_in)
         
         #  deaseasonalise training data
         for i in range(0, len(ts_train)):
-            ts_train[i] = ts_train[i] * 100 / seasonality_in[i % freq_n]
+            ts_train[i] = ts_train[i] * 100 / seasonality_in[i % freq]
             
         #  deaseasonalise training data
         for i in range(0, len(ts_test)):
-            ts_test[i] = ts_test[i] * 100 / seasonality_in[i % freq_n]
+            ts_test[i] = ts_test[i] * 100 / seasonality_in[i % freq]
             
         data["train"][idx]["target"] = ts_train
         data["test"][idx]["target"] = ts_test
         
+#        data["train-nocat"][idx]["target"] = ts_train
+#        data["test-nocat"][idx]["target"] = ts_test        
+        
     return data, season_coeffs
      
-def forecast(data, cfg):
+def forecast(data, season_coeffs, cfg):
     logger.info("Params: %s " % cfg)
-    use_default_scaler = (cfg['preprocessing'] is None)
         
     if cfg['model']['type'] in ['SimpleFeedForwardEstimator', 'DeepFactorEstimator']:
-        gluon_train = ListDataset(data['train-nocat'], freq=freq)
+        gluon_train = ListDataset(data['train-nocat'].copy(), freq=freq_pd)
     else:
-        gluon_train = ListDataset(data['train'], freq=freq)
+        gluon_train = ListDataset(data['train'].copy(), freq=freq_pd)
     
-    trainer=Trainer(
-        epochs=5,
-    )
-
 #    trainer=Trainer(
-#        mx.Context("gpu"),
-#        epochs=cfg['trainer']['max_epochs'],
-#        num_batches_per_epoch=cfg['trainer']['num_batches_per_epoch'],
-#        batch_size=cfg['trainer']['batch_size'],
-#        patience=cfg['trainer']['patience'],
-#        
-#        learning_rate=cfg['trainer']['learning_rate'],
-#        learning_rate_decay_factor=cfg['trainer']['learning_rate_decay_factor'],
-#        minimum_learning_rate=cfg['trainer']['minimum_learning_rate'],
-#        weight_decay=cfg['trainer']['weight_decay'],
+#        epochs=5,
 #    )
+
+    trainer=Trainer(
+        mx.Context("gpu"),
+        epochs=cfg['trainer']['max_epochs'],
+        num_batches_per_epoch=cfg['trainer']['num_batches_per_epoch'],
+        batch_size=cfg['trainer']['batch_size'],
+        patience=cfg['trainer']['patience'],
+        
+        learning_rate=cfg['trainer']['learning_rate'],
+        learning_rate_decay_factor=cfg['trainer']['learning_rate_decay_factor'],
+        minimum_learning_rate=cfg['trainer']['minimum_learning_rate'],
+        weight_decay=cfg['trainer']['weight_decay'],
+    )
     
     if cfg['model']['type'] == 'SimpleFeedForwardEstimator':
         estimator = SimpleFeedForwardEstimator(
-            freq=freq,
-            scaling=use_default_scaler,
+            freq=freq_pd,
+#            scaling=use_default_scaler,
             prediction_length=prediction_length, 
             num_hidden_dimensions = cfg['model']['num_hidden_dimensions'],
             num_parallel_samples=1,
@@ -268,8 +277,8 @@ def forecast(data, cfg):
 
     if cfg['model']['type'] == 'DeepFactorEstimator': 
          estimator = DeepFactorEstimator(
-            freq=freq,
-            scaling=use_default_scaler,
+            freq=freq_pd,
+#            scaling=use_default_scaler,
             prediction_length=prediction_length,
             num_hidden_global=cfg['model']['num_hidden_global'], 
             num_layers_global=cfg['model']['num_layers_global'], 
@@ -280,8 +289,8 @@ def forecast(data, cfg):
          
     if cfg['model']['type'] == 'DeepAREstimator':            
         estimator = DeepAREstimator(
-            freq=freq,
-            scaling=use_default_scaler,
+            freq=freq_pd,
+#            scaling=use_default_scaler,
             prediction_length=prediction_length,        
             num_cells=cfg['model']['num_cells'],
             num_layers=cfg['model']['num_layers'],        
@@ -294,8 +303,8 @@ def forecast(data, cfg):
         
     if cfg['model']['type'] == 'TransformerEstimator': 
          estimator = TransformerEstimator(
-            freq=freq,
-            scaling=use_default_scaler,
+            freq=freq_pd,
+#            scaling=use_default_scaler,
             prediction_length=prediction_length,
 #            model_dim=cfg['model']['model_dim'], 
             model_dim=cfg['model']['model_dim_heads'][0], 
@@ -318,37 +327,46 @@ def forecast(data, cfg):
     model = estimator.train(gluon_train)
     
     if cfg['model']['type'] in ['SimpleFeedForwardEstimator', 'DeepFactorEstimator']:
-        gluon_test = ListDataset(data['test-nocat'], freq=freq)
+        gluon_test = ListDataset(data['test-nocat'].copy() , freq=freq_pd)
     else:
-        gluon_test = ListDataset(data['test'], freq=freq)
+        gluon_test = ListDataset(data['test'].copy(), freq=freq_pd)
     
-    forecast_it, ts_it = make_evaluation_predictions(
-        dataset=gluon_test,
-        predictor=model,
-        num_eval_samples=1,
-    )
+    forecast_it, ts_it = make_evaluation_predictions(dataset=gluon_test, predictor=model, num_eval_samples=1)
+    forecasts = list(forecast_it)
     
-    agg_metrics, item_metrics = Evaluator()(ts_it, forecast_it, num_series=len(data['test']))
-    logger.info("GluonTS  MASE : %.6f" % agg_metrics['MASE'])
-    logger.info("GluonTS sMAPE : %.6f" % 100 * float(float(agg_metrics['sMAPE'])))
+#    agg_metrics, item_metrics = Evaluator()(ts_it, forecast_it, num_series=len(data['test']))
+#    logger.info("GluonTS  MASE : %.6f" % agg_metrics['MASE'])
+#    logger.info("GluonTS sMAPE : %.3f" % float(100 * agg_metrics['sMAPE']))
 
-#    # add seasonality
-#    for i in range(0, len(ts)):
-#        ts[i] = ts[i] * seasonality_in[i % freq] / 100
+    mases = []
+    smapes = []
+    # add seasonality and compute MASE
+    for idx in range(len(forecasts)):
+        ts = data['train'][idx]['target']
+        for i in range(0, len(ts)):
+            ts[i] = ts[i] * season_coeffs[idx][i % freq] / 100   
         
-    err = mase()
-    logger.info("unxformed MASE : %.6f" % err)
-    return err
+        y_hat_test = forecasts[idx].samples.reshape(-1)
+        for i in range(len(ts), len(ts) + prediction_length):
+            y_hat_test[i - len(ts)] = y_hat_test[i - len(ts)] * season_coeffs[idx][i % freq] / 100
+
+        y_test = data['train'][idx]['target']
+        mases.append(mase(ts, y_test[-prediction_length:], y_hat_test, freq))
+        smapes.append(smape(y_test[-prediction_length:], y_hat_test))
+    mean_mase = np.mean(mases)
+    logger.info("MASE  : %.6f" % mean_mase)
+    logger.info("sMAPE : %.3f" % float(100 * float(np.mean(smapes))))
+    return mean_mase
 
 def gluon_fcast(cfg):        
-#    try:
-    err = forecast(data, cfg)
-    if np.isnan(err) or np.isinf(err):
-        return {'loss': err, 'status': STATUS_FAIL, 'cfg' : cfg, 'build_url' : environ.get("BUILD_URL")}
-#    except Exception as e:
-#        exc_str = format_exc()
-#        logger.error('\n%s' % exc_str)
-#        return {'loss': None, 'status': STATUS_FAIL, 'cfg' : cfg, 'exception': exc_str, 'build_url' : environ.get("BUILD_URL")}
+    try:
+        err = forecast(data, season_coeffs, cfg)
+        if np.isnan(err) or np.isinf(err):
+            return {'loss': err, 'status': STATUS_FAIL, 'cfg' : cfg, 'build_url' : environ.get("BUILD_URL")}
+    except Exception as e:
+        exc_str = format_exc()
+        logger.error('\n%s' % exc_str)
+        return {'loss': None, 'status': STATUS_FAIL, 'cfg' : cfg, 'exception': exc_str, 'build_url' : environ.get("BUILD_URL")}
         
     return {'loss': err, 'status': STATUS_OK, 'cfg' : cfg, 'build_url' : environ.get("BUILD_URL")}
 
@@ -361,15 +379,15 @@ def call_hyperopt():
 #    transformer_seqs = ['d', 'r', 'n', 'dn', 'nd', 'rn', 'nr', 'dr', 'rd',
 #                        'drn', 'dnr', 'rdn', 'rnd', 'nrd', 'ndr']
     space = {
-        'preprocessing' : hp.choice('preprocessing', [None, 'min_max', 'max_abs', 'power_std']),
-        
-        'deseasonalise' : hp.choice('deseasonalise', [
-                                        {'model' : None},
-                                        {'model' : 'mult', 'coeff_as_xreg' : False},
-                                        {'model' : 'mult', 'coeff_as_xreg' : True},
+#        'preprocessing' : hp.choice('preprocessing', [None, 'min_max', 'max_abs', 'power_std']),
+#        
+#        'deseasonalise' : hp.choice('deseasonalise', [
+#                                        {'model' : None},
+#                                        {'model' : 'mult', 'coeff_as_xreg' : False},
+#                                        {'model' : 'mult', 'coeff_as_xreg' : True},
 #                                        {'model' : 'add', 'coeff_as_xreg' : False},
 #                                        {'model' : 'add', 'coeff_as_xreg' : True},
-                                    ]),
+#                                    ]),
         
 #        'trainer' : {
 #            'max_epochs'                 : hp.choice('max_epochs', [125, 250, 500, 1000, 2000, 4000]),
@@ -453,7 +471,7 @@ def call_hyperopt():
          
     return space_eval(space, best) 
     
-#if __name__ == "__main__":
-#    data = load_plos_m3_data("./m3_monthly")
-#    params = call_hyperopt()
-#    logger.info("Best params: %s" % params)
+if __name__ == "__main__":
+    data, season_coeffs  = load_plos_m3_data("./m3_monthly")
+    params = call_hyperopt()
+    logger.info("Best params: %s" % params)
