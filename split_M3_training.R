@@ -15,36 +15,36 @@ options(width = 1024)
 # Config ####
 
 if (interactive()) {
-  prop_ts <- NA
+  prop_tt <- NA
   num3_cores <- 4
 } else
 {
-  prop_ts <- NA
+  prop_tt <- NA
   num3_cores <- 16
 }
-use_parallel <- TRUE #is.na(prop_ts)
+use_parallel <- TRUE #is.na(prop_tt)
 
 ###########################################################################
 # Preprocess M data ####
 
-if (is.na(prop_ts)) {
+if (is.na(prop_tt)) {
   m3_data <- M3
 } else {
-  m3_data <- sample(M3, prop_ts * length(M3))
+  m3_data <- sample(M3, prop_tt * length(M3))
 }
 
-get_start <- function(ts) {
-  iso_date <- date_decimal(as.numeric(time(ts)[1]))
+get_start <- function(tt) {
+  iso_date <- date_decimal(as.numeric(time(tt)[1]))
   return (substring(iso_date, 1, 19))
 }
 
-ts_to_json <- function(idx, ts_list, type_list) {
+tt_to_json <- function(idx, tt_list, type_list) {
   json <- (paste0(toJSON(
     list(
-      start = get_start(ts_list[[idx]]),
-      target = ts_list[[idx]],
+      start = get_start(tt_list[[idx]]),
+      target = tt_list[[idx]],
       feat_static_cat = c(idx, as.numeric(type_list[[idx]]))
-      # feat_dynamic_real = matrix(rexp(10 * length(ts_list[[idx]])), ncol =
+      # feat_dynamic_real = matrix(rexp(10 * length(tt_list[[idx]])), ncol =
       #                              10)
     ),
     auto_unbox = TRUE
@@ -54,12 +54,12 @@ ts_to_json <- function(idx, ts_list, type_list) {
 
 process_period <- function(period, m3_data, final_mode) {
   print(period)
-  m3_period_data <- keep(subset(m3_data, period), function(ts) length(ts$x) > 80)
+  m3_period_data <- keep(subset(m3_data, period), function(tt) length(tt$x) > 80)
 
   # len_m3_period <-
-  #   unlist(lapply(m3_period_data, function(ts)
-  #     return(length(ts$x))))
-  # print(ggplot(tibble(ts_length = len_m3_period)) + geom3_histogram(aes(x = ts_length), bins=100) + ggtitle(period) + scale_x_log10())
+  #   unlist(lapply(m3_period_data, function(tt)
+  #     return(length(tt$x))))
+  # print(ggplot(tibble(tt_length = len_m3_period)) + geom3_histogram(aes(x = tt_length), bins=100) + ggtitle(period) + scale_x_log10())
 
   # if (use_parallel) {
   #   m3_data_x_deseason <- mclapply(1:length(m3_data_x), function(idx)
@@ -70,12 +70,12 @@ process_period <- function(period, m3_data, final_mode) {
   # }
 
   m3_st <-
-    lapply(m3_period_data, function(ts)
-      return(ts$st))
+    lapply(m3_period_data, function(tt)
+      return(tt$st))
 
   m3_type_str <-
-    lapply(m3_period_data, function(ts)
-      return(ts$type))
+    lapply(m3_period_data, function(tt)
+      return(tt$type))
   m3_type_levels <-
     levels(as.factor(unlist(m3_type_str)))
   m3_type <-
@@ -83,40 +83,40 @@ process_period <- function(period, m3_data, final_mode) {
       return(factor(type, levels = m3_type_levels)))
 
   m3_horiz <-
-    lapply(m3_period_data, function(ts)
-      return(ts$h))
+    lapply(m3_period_data, function(tt)
+      return(tt$h))
 
   ###########################################################################
-  # Create TS depending on final_mode ####
+  # Create tt depending on final_mode ####
 
   if (final_mode) {
     dirname <-
-      paste0("/tmp/m3_",
+      paste0("m3_",
              tolower(period),
-             '/')
+             '_all/')
     m3_train <-
-      lapply(m3_period_data, function(ts)
-        return(ts$x))
+      lapply(m3_period_data, function(tt)
+        return(tt$x))
 
     # train + test
     m3_test <-
-      lapply(m3_period_data, function(ts)
-        return(c(ts$x, ts$xx)))
+      lapply(m3_period_data, function(tt)
+        return(ts(data = c(tt$x, tt$xx), start = start(tt$x), frequency = frequency(tt$x))))
   } else {
     dirname <-
-      paste0("/tmp/m3_",
+      paste0("m3_",
              tolower(period),
              '/')
     m3_train <-
-      lapply(m3_period_data, function(ts)
-        return(subset(ts$x, end = (
-          length(ts$x) - ts$h
+      lapply(m3_period_data, function(tt)
+        return(subset(tt$x, end = (
+          length(tt$x) - tt$h
         ))))
 
     # train + test
     m3_test <-
-      lapply(m3_period_data, function(ts)
-        return(ts$x))
+      lapply(m3_period_data, function(tt)
+        return(tt$x))
   }
 
   ###########################################################################
@@ -124,7 +124,7 @@ process_period <- function(period, m3_data, final_mode) {
 
   json <-
     lapply(1:length(m3_train),
-           ts_to_json,
+           tt_to_json,
            m3_train,
            m3_type)
   sink(paste0(dirname, "train/data.json"))
@@ -133,7 +133,7 @@ process_period <- function(period, m3_data, final_mode) {
 
   json <-
     lapply(1:length(m3_test),
-           ts_to_json,
+           tt_to_json,
            m3_test,
            m3_type)
   sink(paste0(dirname, "test/data.json"))
