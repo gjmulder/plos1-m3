@@ -248,22 +248,22 @@ def forecast(data, season_coeffs, cfg):
     else:
         gluon_train = ListDataset(data['train'].copy(), freq=freq_pd)
     
-    trainer=Trainer(
-        epochs=5,
-    )
-
 #    trainer=Trainer(
-#        mx.Context("gpu"),
-#        epochs=cfg['trainer']['max_epochs'],
-#        num_batches_per_epoch=cfg['trainer']['num_batches_per_epoch'],
-#        batch_size=cfg['trainer']['batch_size'],
-#        patience=cfg['trainer']['patience'],
-#        
-#        learning_rate=cfg['trainer']['learning_rate'],
-#        learning_rate_decay_factor=cfg['trainer']['learning_rate_decay_factor'],
-#        minimum_learning_rate=cfg['trainer']['minimum_learning_rate'],
-#        weight_decay=cfg['trainer']['weight_decay'],
+#        epochs=5,
 #    )
+
+    trainer=Trainer(
+        mx.Context("gpu"),
+        epochs=cfg['trainer']['max_epochs'],
+        num_batches_per_epoch=cfg['trainer']['num_batches_per_epoch'],
+        batch_size=cfg['trainer']['batch_size'],
+        patience=cfg['trainer']['patience'],
+        
+        learning_rate=cfg['trainer']['learning_rate'],
+        learning_rate_decay_factor=cfg['trainer']['learning_rate_decay_factor'],
+        minimum_learning_rate=cfg['trainer']['minimum_learning_rate'],
+        weight_decay=cfg['trainer']['weight_decay'],
+    )
     
     if cfg['model']['type'] == 'SimpleFeedForwardEstimator':
         estimator = SimpleFeedForwardEstimator(
@@ -430,8 +430,8 @@ def call_hyperopt():
 #            },
             {
                 'type'                       : 'DeepAREstimator',
-                'num_cells'                  : hp.choice('num_cells', [600, 800, 1000, 1200]),
-                'num_layers'                 : hp.choice('num_layers', [4, 5, 6]),
+                'num_cells'                  : hp.choice('num_cells', [4, 8, 16, 32, 64, 128, 256, 512]),
+                'num_layers'                 : hp.choice('num_layers', [1, 3, 5, 7, 9]),
                 
                 'dar_dropout_rate'           : hp.uniform('dar_dropout_rate', dropout_rate['min'], dropout_rate['max']),
             },
