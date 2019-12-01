@@ -430,8 +430,8 @@ def call_hyperopt():
 #            },
             {
                 'type'                       : 'DeepAREstimator',
-                'num_cells'                  : hp.choice('num_cells', [4, 8, 16, 32, 64, 128, 256, 512]),
-                'num_layers'                 : hp.choice('num_layers', [1, 3, 5, 7, 9]),
+                'num_cells'                  : hp.choice('num_cells', [2, 4, 8, 16, 32, 64, 128, 256, 512]),
+                'num_layers'                 : hp.choice('num_layers', [1, 2, 3, 5, 7, 9]),
                 
                 'dar_dropout_rate'           : hp.uniform('dar_dropout_rate', dropout_rate['min'], dropout_rate['max']),
             },
