@@ -34,7 +34,7 @@ from gluonts.model.transformer import TransformerEstimator
 from gluonts.model.deep_factor import DeepFactorEstimator
 from gluonts.trainer import Trainer
 from gluonts.evaluation.backtest import make_evaluation_predictions
-from gluonts.evaluation import Evaluator
+#from gluonts.evaluation import Evaluator
 
 ########################################################################################################
 
@@ -219,7 +219,6 @@ def load_plos_m3_data(path):
     season_coeffs = []          
     for idx in range(len(data["train"])):
         ts_train = data["train"][idx]["target"]
-        ts_test  = data["test"][idx]["target"]
         
         # determine seasonality coeffs
         seasonality_in = deseasonalize(np.array(ts_train), freq)
@@ -229,7 +228,8 @@ def load_plos_m3_data(path):
         for i in range(0, len(ts_train)):
             ts_train[i] = ts_train[i] * 100 / seasonality_in[i % freq]
             
-        #  deaseasonalise training data
+        #  deaseasonalise test data
+        ts_test  = data["test"][idx]["target"]
         for i in range(0, len(ts_test)):
             ts_test[i] = ts_test[i] * 100 / seasonality_in[i % freq]
             
@@ -237,7 +237,6 @@ def load_plos_m3_data(path):
         data["test"][idx]["target"] = ts_test
         
 #        data["train-nocat"][idx]["target"] = ts_train
-#        data["test-nocat"][idx]["target"] = ts_test        
         
     return data, season_coeffs
      
@@ -249,22 +248,22 @@ def forecast(data, season_coeffs, cfg):
     else:
         gluon_train = ListDataset(data['train'].copy(), freq=freq_pd)
     
-#    trainer=Trainer(
-#        epochs=5,
-#    )
-
     trainer=Trainer(
-        mx.Context("gpu"),
-        epochs=cfg['trainer']['max_epochs'],
-        num_batches_per_epoch=cfg['trainer']['num_batches_per_epoch'],
-        batch_size=cfg['trainer']['batch_size'],
-        patience=cfg['trainer']['patience'],
-        
-        learning_rate=cfg['trainer']['learning_rate'],
-        learning_rate_decay_factor=cfg['trainer']['learning_rate_decay_factor'],
-        minimum_learning_rate=cfg['trainer']['minimum_learning_rate'],
-        weight_decay=cfg['trainer']['weight_decay'],
+        epochs=5,
     )
+
+#    trainer=Trainer(
+#        mx.Context("gpu"),
+#        epochs=cfg['trainer']['max_epochs'],
+#        num_batches_per_epoch=cfg['trainer']['num_batches_per_epoch'],
+#        batch_size=cfg['trainer']['batch_size'],
+#        patience=cfg['trainer']['patience'],
+#        
+#        learning_rate=cfg['trainer']['learning_rate'],
+#        learning_rate_decay_factor=cfg['trainer']['learning_rate_decay_factor'],
+#        minimum_learning_rate=cfg['trainer']['minimum_learning_rate'],
+#        weight_decay=cfg['trainer']['weight_decay'],
+#    )
     
     if cfg['model']['type'] == 'SimpleFeedForwardEstimator':
         estimator = SimpleFeedForwardEstimator(
@@ -342,17 +341,20 @@ def forecast(data, season_coeffs, cfg):
     smapes = []
     # add seasonality and compute MASE
     for idx in range(len(forecasts)):
-        ts = data['train'][idx]['target']
-        for i in range(0, len(ts)):
-            ts[i] = ts[i] * season_coeffs[idx][i % freq] / 100   
-        
-        y_hat_test = forecasts[idx].samples.reshape(-1)
-        for i in range(len(ts), len(ts) + prediction_length):
-            y_hat_test[i - len(ts)] = y_hat_test[i - len(ts)] * season_coeffs[idx][i % freq] / 100
+        ts_train = data['train'][idx]['target']
+        for i in range(0, len(ts_train)):
+            ts_train[i] = ts_train[i] * season_coeffs[idx][i % freq] / 100   
 
-        y_test = data['train'][idx]['target']
-        mases.append(mase(ts, y_test[-prediction_length:], y_hat_test, freq))
-        smapes.append(smape(y_test[-prediction_length:], y_hat_test))
+        ts_test = data['test'][idx]['target']
+        for i in range(0, len(ts_test)):
+            ts_test[i] = ts_test[i] * season_coeffs[idx][i % freq] / 100  
+            
+        y_hat_test = forecasts[idx].samples.reshape(-1)
+        for i in range(len(ts_train), len(ts_train) + prediction_length):
+            y_hat_test[i - len(ts_train)] = y_hat_test[i - len(ts_train)] * season_coeffs[idx][i % freq] / 100
+
+        mases.append(mase(np.array(ts_test[:-prediction_length]), np.array(ts_test[-prediction_length:]), y_hat_test, freq))
+        smapes.append(smape(np.array(ts_test[-prediction_length:]), y_hat_test))
     mean_mase = np.mean(mases)
     logger.info("MASE  : %.6f" % mean_mase)
     logger.info("sMAPE : %.3f" % float(100 * float(np.mean(smapes))))
