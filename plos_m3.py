@@ -48,7 +48,7 @@ if "VERSION" in environ:
     
     use_cluster = True
 else:
-    version = "test"
+    version = "final"
     logger.warning("VERSION not set, using: %s" % version)
     
     use_cluster = False
@@ -59,7 +59,7 @@ if "DATASET" in environ:
     
     use_cluster = True
 else:
-    dataset_name = "test"
+    dataset_name = "final"
     logger.warning("DATASET not set, using: %s" % dataset_name)
     
 num_eval_samples = 1
@@ -403,10 +403,10 @@ def call_hyperopt():
 #            'weight_decay'               : hp.uniform('weight_decay', 00.5e-08, 10.0e-08),
 #        },
         'trainer' : {
-            'max_epochs'                 : hp.choice('max_epochs', [250, 500, 1000, 2000]),
-            'num_batches_per_epoch'      : hp.choice('num_batches_per_epoch', [60, 320, 640]),
-            'batch_size'                 : hp.choice('batch_size', [160, 180, 200, 220, 240]),
-            'patience'                   : hp.choice('patience', [60, 80, 100]),
+            'max_epochs'                 : hp.choice('max_epochs', [128, 256, 512, 1024, 2048]),
+            'num_batches_per_epoch'      : hp.choice('num_batches_per_epoch', [32, 64, 128, 256, 512]),
+            'batch_size'                 : hp.choice('batch_size', [32, 64, 128, 256]),
+            'patience'                   : hp.choice('patience', [8, 16, 32, 64]),
             
             'learning_rate'              : hp.uniform('learning_rate', 1e-03, 3e-03),
             'learning_rate_decay_factor' : hp.uniform('learning_rate_decay_factor', 0.5, 0.6),
