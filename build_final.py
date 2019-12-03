@@ -34,25 +34,26 @@ prediction_length = 18
     
 if __name__ == "__main__":
     data, season_coeffs = load_plos_m3_data("./m3_monthly_all")
+#"loss" : 1.0307178497314453,
+#"status" : "ok",
     cfg = {
-#             "preprocessing" : None,
-#             "deseasonalise" : {'model' : None}, # {'model' : 'mult'},
-			"model" : {
-				"dar_dropout_rate" : 0.1059116635338751,
-				"num_cells" : 10,
-				"num_layers" : 1,
-				"type" : "DeepAREstimator"
-			},
-			"trainer" : {
-				"batch_size" : 160,
-				"learning_rate" : 0.0016089266220730123,
-				"learning_rate_decay_factor" : 0.573950423419042,
-				"max_epochs" : 500,
-				"minimum_learning_rate" : 0.000004885314833535221,
-				"num_batches_per_epoch" : 320,
-				"patience" : 80,
-				"weight_decay" : 9.101039588533137e-9
-			}
+		"model" : {
+			"dar_dropout_rate" : 0.09603267184884913,
+			"num_cells" : 512,
+			"num_layers" : 5,
+			"type" : "DeepAREstimator"
+		},
+		"trainer" : {
+			"batch_size" : 256,
+			"learning_rate" : 0.00122504362261288,
+			"learning_rate_decay_factor" : 0.5840807488994838,
+			"max_epochs" : 256,
+			"minimum_learning_rate" : 0.000004764018847166416,
+			"num_batches_per_epoch" : 64,
+			"patience" : 32,
+			"weight_decay" : 7.1153516607763915e-9
 		}
+	}
+
     loss = forecast(data, season_coeffs, cfg)
     logger.info("Loss: %.4f" % loss)
