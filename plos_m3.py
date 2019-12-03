@@ -34,7 +34,7 @@ from gluonts.model.transformer import TransformerEstimator
 from gluonts.model.deep_factor import DeepFactorEstimator
 from gluonts.trainer import Trainer
 from gluonts.evaluation.backtest import make_evaluation_predictions
-from gluonts.evaluation import Evaluator
+#from gluonts.evaluation import Evaluator
 
 ########################################################################################################
 
@@ -48,7 +48,7 @@ if "VERSION" in environ:
     
     use_cluster = True
 else:
-    version = "test"
+    version = "final"
     logger.warning("VERSION not set, using: %s" % version)
     
     use_cluster = False
@@ -59,7 +59,7 @@ if "DATASET" in environ:
     
     use_cluster = True
 else:
-    dataset_name = "test"
+    dataset_name = "final"
     logger.warning("DATASET not set, using: %s" % dataset_name)
     
 num_eval_samples = 1
@@ -219,7 +219,6 @@ def load_plos_m3_data(path):
     season_coeffs = []          
     for idx in range(len(data["train"])):
         ts_train = data["train"][idx]["target"]
-        ts_test  = data["test"][idx]["target"]
         
         # determine seasonality coeffs
         seasonality_in = deseasonalize(np.array(ts_train), freq)
@@ -229,7 +228,8 @@ def load_plos_m3_data(path):
         for i in range(0, len(ts_train)):
             ts_train[i] = ts_train[i] * 100 / seasonality_in[i % freq]
             
-        #  deaseasonalise training data
+        #  deaseasonalise test data
+        ts_test  = data["test"][idx]["target"]
         for i in range(0, len(ts_test)):
             ts_test[i] = ts_test[i] * 100 / seasonality_in[i % freq]
             
@@ -237,7 +237,6 @@ def load_plos_m3_data(path):
         data["test"][idx]["target"] = ts_test
         
 #        data["train-nocat"][idx]["target"] = ts_train
-#        data["test-nocat"][idx]["target"] = ts_test        
         
     return data, season_coeffs
      
@@ -342,17 +341,20 @@ def forecast(data, season_coeffs, cfg):
     smapes = []
     # add seasonality and compute MASE
     for idx in range(len(forecasts)):
-        ts = data['train'][idx]['target']
-        for i in range(0, len(ts)):
-            ts[i] = ts[i] * season_coeffs[idx][i % freq] / 100   
-        
-        y_hat_test = forecasts[idx].samples.reshape(-1)
-        for i in range(len(ts), len(ts) + prediction_length):
-            y_hat_test[i - len(ts)] = y_hat_test[i - len(ts)] * season_coeffs[idx][i % freq] / 100
+        ts_train = data['train'][idx]['target']
+        for i in range(0, len(ts_train)):
+            ts_train[i] = ts_train[i] * season_coeffs[idx][i % freq] / 100   
 
-        y_test = data['train'][idx]['target']
-        mases.append(mase(ts, y_test[-prediction_length:], y_hat_test, freq))
-        smapes.append(smape(y_test[-prediction_length:], y_hat_test))
+        ts_test = data['test'][idx]['target']
+        for i in range(0, len(ts_test)):
+            ts_test[i] = ts_test[i] * season_coeffs[idx][i % freq] / 100  
+            
+        y_hat_test = forecasts[idx].samples.reshape(-1)
+        for i in range(len(ts_train), len(ts_train) + prediction_length):
+            y_hat_test[i - len(ts_train)] = y_hat_test[i - len(ts_train)] * season_coeffs[idx][i % freq] / 100
+
+        mases.append(mase(np.array(ts_test[:-prediction_length]), np.array(ts_test[-prediction_length:]), y_hat_test, freq))
+        smapes.append(smape(np.array(ts_test[-prediction_length:]), y_hat_test))
     mean_mase = np.mean(mases)
     logger.info("MASE  : %.6f" % mean_mase)
     logger.info("sMAPE : %.3f" % float(100 * float(np.mean(smapes))))
@@ -401,10 +403,10 @@ def call_hyperopt():
 #            'weight_decay'               : hp.uniform('weight_decay', 00.5e-08, 10.0e-08),
 #        },
         'trainer' : {
-            'max_epochs'                 : hp.choice('max_epochs', [250, 500, 1000, 2000]),
-            'num_batches_per_epoch'      : hp.choice('num_batches_per_epoch', [60, 320, 640]),
-            'batch_size'                 : hp.choice('batch_size', [160, 180, 200, 220, 240]),
-            'patience'                   : hp.choice('patience', [60, 80, 100]),
+            'max_epochs'                 : hp.choice('max_epochs', [128, 256, 512, 1024, 2048]),
+            'num_batches_per_epoch'      : hp.choice('num_batches_per_epoch', [32, 64, 128, 256, 512]),
+            'batch_size'                 : hp.choice('batch_size', [32, 64, 128, 256]),
+            'patience'                   : hp.choice('patience', [8, 16, 32, 64]),
             
             'learning_rate'              : hp.uniform('learning_rate', 1e-03, 3e-03),
             'learning_rate_decay_factor' : hp.uniform('learning_rate_decay_factor', 0.5, 0.6),
@@ -428,8 +430,8 @@ def call_hyperopt():
 #            },
             {
                 'type'                       : 'DeepAREstimator',
-                'num_cells'                  : hp.choice('num_cells', [600, 800, 1000, 1200]),
-                'num_layers'                 : hp.choice('num_layers', [4, 5, 6]),
+                'num_cells'                  : hp.choice('num_cells', [2, 4, 8, 16, 32, 64, 128, 256, 512]),
+                'num_layers'                 : hp.choice('num_layers', [1, 2, 3, 5, 7, 9]),
                 
                 'dar_dropout_rate'           : hp.uniform('dar_dropout_rate', dropout_rate['min'], dropout_rate['max']),
             },
