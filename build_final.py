@@ -47,7 +47,7 @@ if __name__ == "__main__":
 			"batch_size" : 256,
 			"learning_rate" : 0.00122504362261288,
 			"learning_rate_decay_factor" : 0.5840807488994838,
-			"max_epochs" : 256,
+			"max_epochs" : 30000,
 			"minimum_learning_rate" : 0.000004764018847166416,
 			"num_batches_per_epoch" : 64,
 			"patience" : 32,
