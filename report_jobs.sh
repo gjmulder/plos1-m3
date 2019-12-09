@@ -7,10 +7,33 @@ else
 	STATUS=$1
 fi
 
-echo "MASE,model.type,experiment,start.time,end.time"
+echo "model.type,train.MASE,train.sMAPE,test.MASE,test.sMAPE,experiment,start.time,end.time"
 #for DB in plos1-m3-001g plos1-m3-002g plos1-m3-003g
-for DB in plos1-m3-006g
+for DB in plos1-m3-007g
 do
-	#echo "db.jobs.find({\"result.status\" : \"$STATUS\"}).toArray()" | mongo --host heika $DB | awk '/loss/ {printf("%8.4f,", $NF)} /exp_key/ {printf("%s", $NF)} /book_time/ {printf("%10s,", substr($NF, 10, 24))} /refresh_time/ {print substr($NF, 10, 24)}'
-	echo "db.jobs.find({\"result.status\" : \"$STATUS\"}).toArray()" | mongo --host heika $DB | awk '/loss/ {printf("%8.4f,", $NF)} /exp_key/ {printf("%s", $NF)} /"type"/ {printf("%10s,", $NF)} /book_time/ {printf("%10s", $NF)} /refresh_time/ {print $NF}'
+	echo "db.jobs.find({\"result.status\" : \"$STATUS\"}).toArray()" | mongo --host heika $DB | awk '
+/mase/ {
+	printf("%8.4f,", $NF)
+}
+
+/mape/ {
+	printf("%8.4f,", $NF)
+}
+
+
+/exp_key/ {
+	printf("%s", $NF)
+}
+
+/"type"/ {
+	printf("%10s,", $NF)
+}
+
+/book_time/ {
+	printf("%10s", $NF)
+}
+
+/refresh_time/ {
+	print $NF
+}'
 done | grep -v "^nan" | sed 's/ISODate//g' | tr -d "()"
