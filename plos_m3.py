@@ -380,7 +380,8 @@ def forecast(cfg):
             n_skip=cfg['model']['n_skip'],
             dilation_depth=cfg['model']['dilation_depth'], 
             n_stacks=cfg['model']['n_stacks'],
-            act_type=cfg['model']['wn_act_type'], 
+            act_type=cfg['model']['wn_act_type'],
+#            seasonality=(cfg['tcrit'] < 0.0),
             cardinality=[len(train_data['train']), 6],
             num_parallel_samples=1,
             trainer=trainer)
@@ -511,8 +512,8 @@ def call_hyperopt():
 
             {
                 'type'                       : 'WaveNetEstimator',
-                'embedding_dimension'        : hp.choice('embedding_dimension', [2, 4, 8, 16]),
-                'num_bins'                   : hp.choice('num_bins', [256, 512, 1024]),
+                'embedding_dimension'        : hp.choice('embedding_dimension', [2, 4, 8, 16, 32, 64]),
+                'num_bins'                   : hp.choice('num_bins', [256, 512, 1024, 2048]),
                 'n_residue'                  : hp.choice('n_residue', [20, 24, 28]),
                 'n_skip'                     : hp.choice('n_skip', [4, 8, 16, 32, 64]),
                 'dilation_depth'             : hp.choice('dilation_depth', [None, 1, 2, 3, 4, 5, 7, 9]),
