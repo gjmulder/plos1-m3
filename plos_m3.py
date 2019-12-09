@@ -453,8 +453,8 @@ def call_hyperopt():
             
             'learning_rate'              : hp.loguniform('learning_rate', np.log(1e-04), np.log(1e-02)),
             'learning_rate_decay_factor' : hp.uniform('learning_rate_decay_factor', 0.25, 0.75),
-            'minimum_learning_rate'      : hp.loguniform('minimum_learning_rate', np.log(1e-06), np.log(1e-09)),
-            'weight_decay'               : hp.loguniform('weight_decay', np.log(1.0e-06), np.log(1.0e-09)),
+            'minimum_learning_rate'      : hp.loguniform('minimum_learning_rate', np.log(1e-09), np.log(1e-06)),
+            'weight_decay'               : hp.loguniform('weight_decay', np.log(1.0e-09), np.log(1.0e-06)),
         },
 
         'model' : hp.choice('model', [
