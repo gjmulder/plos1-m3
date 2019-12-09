@@ -89,8 +89,9 @@ def deseasonalize(original_ts, ppy):
     # === get in-sample data
     original_ts = original_ts[:-out_of_sample]
     """
-    if seasonality_test(original_ts, ppy):
-        # print("seasonal")
+#    if seasonality_test(original_ts, ppy):
+    if False:
+        print("seasonal")
         # ==== get moving averages
         ma_ts = moving_averages(original_ts, ppy)
 
@@ -102,7 +103,7 @@ def deseasonalize(original_ts, ppy):
         norm = np.sum(si) / (ppy * 100)
         si = si / norm
     else:
-        # print("NOT seasonal")
+#        print("NOT seasonal")
         si = np.full(ppy, 100)
 
     return si
