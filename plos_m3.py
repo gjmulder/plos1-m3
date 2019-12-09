@@ -239,14 +239,45 @@ def load_plos_m3_data(path):
 #        data["train-nocat"][idx]["target"] = ts_train
         
     return data, season_coeffs
+
+def score_model(model, data, season_coeffs, cfg):
+    if cfg['model']['type'] in ['SimpleFeedForwardEstimator', 'DeepFactorEstimator']:
+        gluon_test = ListDataset(data['test-nocat'].copy() , freq=freq_pd)
+    else:
+        gluon_test = ListDataset(data['test'].copy(), freq=freq_pd)
+    
+    forecast_it, ts_it = make_evaluation_predictions(dataset=gluon_test, predictor=model, num_eval_samples=1)
+    forecasts = list(forecast_it)
+    
+    mases = []
+    smapes = []
+    # add seasonality and compute error metrics
+    for idx in range(len(forecasts)):
+        ts_train = data['train'][idx]['target']
+        for i in range(0, len(ts_train)):
+            ts_train[i] = ts_train[i] * season_coeffs[idx][i % freq] / 100   
+
+        ts_test = data['test'][idx]['target']
+        for i in range(0, len(ts_test)):
+            ts_test[i] = ts_test[i] * season_coeffs[idx][i % freq] / 100  
+            
+        y_hat_test = forecasts[idx].samples.reshape(-1)
+        for i in range(len(ts_train), len(ts_train) + prediction_length):
+            y_hat_test[i - len(ts_train)] = y_hat_test[i - len(ts_train)] * season_coeffs[idx][i % freq] / 100
+
+        mases.append(mase(np.array(ts_test[:-prediction_length]), np.array(ts_test[-prediction_length:]), y_hat_test, freq))
+        smapes.append(smape(np.array(ts_test[-prediction_length:]), y_hat_test))
+    mean_mase = np.mean(mases)
+    mean_smape = float(100 * float(np.mean(smapes)))
+    return mean_mase, mean_smape
      
-def forecast(data, season_coeffs, cfg):
+def forecast(train_data, train_season_coeffs, test_data, test_season_coeffs, cfg):
     logger.info("Params: %s " % cfg)
         
     if cfg['model']['type'] in ['SimpleFeedForwardEstimator', 'DeepFactorEstimator']:
-        gluon_train = ListDataset(data['train-nocat'].copy(), freq=freq_pd)
+        gluon_train = ListDataset(train_data['train-nocat'].copy(), freq=freq_pd)
     else:
-        gluon_train = ListDataset(data['train'].copy(), freq=freq_pd)
+        gluon_train = ListDataset(train_data['train'].copy(), freq=freq_pd)
     
 #    trainer=Trainer(
 #        epochs=5,
@@ -296,7 +327,7 @@ def forecast(data, season_coeffs, cfg):
             dropout_rate=cfg['model']['dar_dropout_rate'],
 #            use_feat_dynamic_real=True,
             use_feat_static_cat=True,
-            cardinality=[len(data['train']), 6],
+            cardinality=[len(train_data['train']), 6],
             num_parallel_samples=1,
             trainer=trainer)
         
@@ -316,7 +347,7 @@ def forecast(data, season_coeffs, cfg):
             dropout_rate=cfg['model']['trans_dropout_rate'],
 #            use_feat_dynamic_real=True,
             use_feat_static_cat=True,
-            cardinality=[len(data['train']), 6],
+            cardinality=[len(train_data['train']), 6],
             num_parallel_samples=1,
             trainer=trainer)
 
@@ -324,45 +355,21 @@ def forecast(data, season_coeffs, cfg):
     logger.info(estimator)
     
     model = estimator.train(gluon_train)
-    
-    if cfg['model']['type'] in ['SimpleFeedForwardEstimator', 'DeepFactorEstimator']:
-        gluon_test = ListDataset(data['test-nocat'].copy() , freq=freq_pd)
-    else:
-        gluon_test = ListDataset(data['test'].copy(), freq=freq_pd)
-    
-    forecast_it, ts_it = make_evaluation_predictions(dataset=gluon_test, predictor=model, num_eval_samples=1)
-    forecasts = list(forecast_it)
-    
-#    agg_metrics, item_metrics = Evaluator()(ts_it, forecast_it, num_series=len(data['test']))
-#    logger.info("GluonTS  MASE : %.6f" % agg_metrics['MASE'])
-#    logger.info("GluonTS sMAPE : %.3f" % float(100 * agg_metrics['sMAPE']))
+    train_mase, train_smape = score_model(model, train_data, train_season_coeffs, cfg)
+    logger.info("Train  MASE : %.6f" % train_mase)
+    logger.info("Train sMAPE : %.3f" % train_smape)
 
-    mases = []
-    smapes = []
-    # add seasonality and compute MASE
-    for idx in range(len(forecasts)):
-        ts_train = data['train'][idx]['target']
-        for i in range(0, len(ts_train)):
-            ts_train[i] = ts_train[i] * season_coeffs[idx][i % freq] / 100   
+    test_mase, test_smape = score_model(model, train_data, train_season_coeffs, cfg)
+    logger.info("Test  MASE  : %.6f" % test_mase)
+    logger.info("Test sMAPE  : %.3f" % test_smape)
 
-        ts_test = data['test'][idx]['target']
-        for i in range(0, len(ts_test)):
-            ts_test[i] = ts_test[i] * season_coeffs[idx][i % freq] / 100  
-            
-        y_hat_test = forecasts[idx].samples.reshape(-1)
-        for i in range(len(ts_train), len(ts_train) + prediction_length):
-            y_hat_test[i - len(ts_train)] = y_hat_test[i - len(ts_train)] * season_coeffs[idx][i % freq] / 100
-
-        mases.append(mase(np.array(ts_test[:-prediction_length]), np.array(ts_test[-prediction_length:]), y_hat_test, freq))
-        smapes.append(smape(np.array(ts_test[-prediction_length:]), y_hat_test))
-    mean_mase = np.mean(mases)
-    logger.info("MASE  : %.6f" % mean_mase)
-    logger.info("sMAPE : %.3f" % float(100 * float(np.mean(smapes))))
-    return mean_mase
+    return train_mase
 
 def gluon_fcast(cfg):        
     try:
-        err = forecast(data, season_coeffs, cfg)
+        err = forecast(train_data, train_season_coeffs,
+                       test_data, test_season_coeffs,
+                       cfg)
         if np.isnan(err) or np.isinf(err):
             return {'loss': err, 'status': STATUS_FAIL, 'cfg' : cfg, 'build_url' : environ.get("BUILD_URL")}
     except Exception as e:
@@ -474,6 +481,7 @@ def call_hyperopt():
     return space_eval(space, best) 
     
 if __name__ == "__main__":
-    data, season_coeffs  = load_plos_m3_data("./m3_monthly")
+    train_data, train_season_coeffs  = load_plos_m3_data("./m3_monthly")
+    test_data, test_season_coeffs  = load_plos_m3_data("./m3_monthly_all")
     params = call_hyperopt()
     logger.info("Best params: %s" % params)
