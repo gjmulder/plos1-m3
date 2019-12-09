@@ -16,6 +16,7 @@ logger = getLogger(__name__)
 
 import numpy as np
 import pandas as pd
+from pprint import pformat
 from datetime import date
 from math import sqrt
 #from statistics import mean
@@ -29,42 +30,16 @@ from json import loads
 import mxnet as mx
 from gluonts.dataset.common import ListDataset
 from gluonts.model.simple_feedforward import SimpleFeedForwardEstimator
+from gluonts.model.gp_forecaster import GaussianProcessEstimator
 from gluonts.model.deepar import DeepAREstimator
 from gluonts.model.transformer import TransformerEstimator
 from gluonts.model.deep_factor import DeepFactorEstimator
+from gluonts.model.wavenet import WaveNetEstimator
 from gluonts.trainer import Trainer
 from gluonts.evaluation.backtest import make_evaluation_predictions
 #from gluonts.evaluation import Evaluator
 
 ########################################################################################################
-
-rand_seed = 42
-mx.random.seed(rand_seed, ctx='all')
-np.random.seed(rand_seed)
-
-if "VERSION" in environ:    
-    version = environ.get("VERSION")
-    logger.info("Using version : %s" % version)
-    
-    use_cluster = True
-else:
-    version = "final"
-    logger.warning("VERSION not set, using: %s" % version)
-    
-    use_cluster = False
-
-if "DATASET" in environ:    
-    dataset_name = environ.get("DATASET")
-    logger.info("Using dataset : %s" % dataset_name)
-    
-    use_cluster = True
-else:
-    dataset_name = "final"
-    logger.warning("DATASET not set, using: %s" % dataset_name)
-    
-freq_pd = "M"
-freq = 12
-prediction_length = 18
         
 def detrend(insample_data):
     """
@@ -76,33 +51,49 @@ def detrend(insample_data):
     a, b = np.polyfit(x, insample_data, 1)
     return a, b
 
+def seasonality_test(original_ts, ppy, tcrit):
+    """
+    Seasonality test
+    :param original_ts: time series
+    :param ppy: periods per year
+    :param tcrit: seasonality critical cutoff
+    :return: boolean value: whether the TS is seasonal
+    """
+    s = acf(original_ts, 1)
+    for i in range(2, ppy):
+        s = s + (acf(original_ts, i) ** 2)
 
-def deseasonalize(original_ts, ppy):
+    limit = tcrit * (sqrt((1 + 2 * s) / len(original_ts)))
+
+    return (abs(acf(original_ts, ppy))) > limit
+
+def deseasonalize(original_ts, ppy, tcrit):
     """
     Calculates and returns seasonal indices
     :param original_ts: original data
     :param ppy: periods per year
+    :param tcrit: seasonality critical cutoff
     :return:
     """
     """
     # === get in-sample data
     original_ts = original_ts[:-out_of_sample]
     """
-    if seasonality_test(original_ts, ppy):
-#        print("seasonal")
+    if seasonality_test(original_ts, ppy, tcrit):
+        logger.debug("seasonal")
         # ==== get moving averages
         ma_ts = moving_averages(original_ts, ppy)
 
         # ==== get seasonality indices
-        le_ts = original_ts * 100 / ma_ts
+        le_ts = original_ts * 100.0 / ma_ts
         le_ts = np.hstack((le_ts, np.full((ppy - (len(le_ts) % ppy)), np.nan)))
         le_ts = np.reshape(le_ts, (-1, ppy))
         si = np.nanmean(le_ts, 0)
-        norm = np.sum(si) / (ppy * 100)
+        norm = np.sum(si) / (ppy * 100.0)
         si = si / norm
     else:
-#        print("NOT seasonal")
-        si = np.full(ppy, 100)
+        logger.debug("NOT seasonal")
+        si = np.full(ppy, 100.0)
 
     return si
 
@@ -160,21 +151,6 @@ def acf(data, k):
 
     return float(s1 / s2)
 
-def seasonality_test(original_ts, ppy):
-    """
-    Seasonality test
-    :param original_ts: time series
-    :param ppy: periods per year
-    :return: boolean value: whether the TS is seasonal
-    """
-    s = acf(original_ts, 1)
-    for i in range(2, ppy):
-        s = s + (acf(original_ts, i) ** 2)
-
-    limit = 1.645 * (sqrt((1 + 2 * s) / len(original_ts)))
-
-    return (abs(acf(original_ts, ppy))) > limit
-
 def smape(a, b):
     """
     Calculates sMAPE
@@ -204,110 +180,152 @@ def mase(insample, y_test, y_hat_test, freq):
     return np.mean(abs(y_test - y_hat_test)) / masep
 
 #######################################################################################
+
+rand_seed = 33
+mx.random.seed(rand_seed, ctx='all')
+np.random.seed(rand_seed)
+
+if "VERSION" in environ:    
+    version = environ.get("VERSION")
+    logger.info("Using version : %s" % version)
     
-def load_plos_m3_data(path):
+    use_cluster = True
+else:
+    version = "final"
+    logger.warning("VERSION not set, using: %s" % version)
+    
+    use_cluster = False
+
+if "DATASET" in environ:    
+    dataset_name = environ.get("DATASET")
+    logger.info("Using dataset : %s" % dataset_name)
+    
+    use_cluster = True
+else:
+    dataset_name = "final"
+    logger.warning("DATASET not set, using: %s" % dataset_name)
+    
+freq_pd = "M"
+freq = 12
+prediction_length = 18
+
+def score_model(model, data, season_coeffs):
+    gluon_test = ListDataset(data['test'].copy(), freq=freq_pd)
+    forecast_it, ts_it = make_evaluation_predictions(dataset=gluon_test, predictor=model, num_eval_samples=1)
+    forecasts = list(forecast_it)
+    
+    # add back seasonality and compute error metrics
+    mases = []
+    smapes = []
+    for j in range(len(forecasts)):
+        ts_train = data['train'][j]['target']
+        for i in range(0, len(ts_train)):
+            ts_train[i] = ts_train[i] * season_coeffs[j][i % freq] / 100.0 
+
+        ts_test = data['test'][j]['target']
+        for i in range(0, len(ts_test)):
+            ts_test[i] = ts_test[i] * season_coeffs[j][i % freq] / 100.0
+            
+        y_hat_test = forecasts[j].samples.reshape(-1)
+        for i in range(len(ts_train), len(ts_train) + prediction_length):
+            y_hat_test[i - len(ts_train)] = y_hat_test[i - len(ts_train)] * season_coeffs[j][i % freq] / 100.0
+
+        mases.append(mase(np.array(ts_test[:-prediction_length]), np.array(ts_test[-prediction_length:]), y_hat_test, freq))
+        smapes.append(smape(np.array(ts_test[-prediction_length:]), y_hat_test))
+
+    return {
+        'mase'  : np.mean(mases),
+        'smape' : float(100 * float(np.mean(smapes)))
+    }
+
+def load_plos_m3_data(path, tcrit, model_type):
     data = {}
     for dataset in ["train", "test"]:
         data[dataset] = []
-        data["%s-nocat" % dataset] = []
         with open("%s/%s/data.json" % (path, dataset)) as fp:
             for line in fp:
                ts_data = loads(line)               
                data[dataset].append(ts_data)
                
     season_coeffs = []          
-    for idx in range(len(data["train"])):
-        ts_train = data["train"][idx]["target"]
+    for j in range(len(data["train"])):        
+        ts_train = data["train"][j]["target"]
+        ts_test  = data["test"][j]["target"]
         
-        # determine seasonality coeffs
-        seasonality_in = deseasonalize(np.array(ts_train), freq)
+        # Remove static features if not supported by model
+        if model_type in ['SimpleFeedForwardEstimator', 'DeepFactorEstimator', 'GaussianProcessEstimator']:
+            del(data["train"][j]['feat_static_cat'])
+            del(data["test"][j]['feat_static_cat'])
+            
+        # Determine seasonality coeffs
+        if tcrit > 0.0:
+            seasonality_in = deseasonalize(np.array(ts_train), freq, tcrit)
+        else:
+            seasonality_in = np.full(freq, 100)
+
         season_coeffs.append(seasonality_in)
         
-        #  deaseasonalise training data
+        #  Deaseasonalise training data
         for i in range(0, len(ts_train)):
             ts_train[i] = ts_train[i] * 100 / seasonality_in[i % freq]
             
-        #  deaseasonalise test data
-        ts_test  = data["test"][idx]["target"]
+        #  Deaseasonalise test data
         for i in range(0, len(ts_test)):
             ts_test[i] = ts_test[i] * 100 / seasonality_in[i % freq]
-            
-        data["train"][idx]["target"] = ts_train
-        data["test"][idx]["target"] = ts_test
         
-#        data["train-nocat"][idx]["target"] = ts_train
+        data["train"][j]["target"] = ts_train
+        data["test"][j]["target"]  = ts_test
         
     return data, season_coeffs
-
-def score_model(model, data, season_coeffs, cfg):
-    if cfg['model']['type'] in ['SimpleFeedForwardEstimator', 'DeepFactorEstimator']:
-        gluon_test = ListDataset(data['test-nocat'].copy() , freq=freq_pd)
-    else:
-        gluon_test = ListDataset(data['test'].copy(), freq=freq_pd)
     
-    forecast_it, ts_it = make_evaluation_predictions(dataset=gluon_test, predictor=model, num_eval_samples=1)
-    forecasts = list(forecast_it)
-    
-    mases = []
-    smapes = []
-    # add seasonality and compute error metrics
-    for idx in range(len(forecasts)):
-        ts_train = data['train'][idx]['target']
-        for i in range(0, len(ts_train)):
-            ts_train[i] = ts_train[i] * season_coeffs[idx][i % freq] / 100   
-
-        ts_test = data['test'][idx]['target']
-        for i in range(0, len(ts_test)):
-            ts_test[i] = ts_test[i] * season_coeffs[idx][i % freq] / 100  
-            
-        y_hat_test = forecasts[idx].samples.reshape(-1)
-        for i in range(len(ts_train), len(ts_train) + prediction_length):
-            y_hat_test[i - len(ts_train)] = y_hat_test[i - len(ts_train)] * season_coeffs[idx][i % freq] / 100
-
-        mases.append(mase(np.array(ts_test[:-prediction_length]), np.array(ts_test[-prediction_length:]), y_hat_test, freq))
-        smapes.append(smape(np.array(ts_test[-prediction_length:]), y_hat_test))
-    mean_mase = np.mean(mases)
-    mean_smape = float(100 * float(np.mean(smapes)))
-    return mean_mase, mean_smape
-     
-def forecast(train_data, train_season_coeffs, test_data, test_season_coeffs, cfg):
+def forecast(cfg):
     logger.info("Params: %s " % cfg)
-        
-    if cfg['model']['type'] in ['SimpleFeedForwardEstimator', 'DeepFactorEstimator']:
-        gluon_train = ListDataset(train_data['train-nocat'].copy(), freq=freq_pd)
-    else:
-        gluon_train = ListDataset(train_data['train'].copy(), freq=freq_pd)
-    
-    trainer=Trainer(
-        epochs=2,
-    )
 
+    # Load training data
+    train_data, train_season_coeffs  = load_plos_m3_data("./m3_monthly", cfg['tcrit'], cfg['model']['type'])
+    gluon_train = ListDataset(train_data['train'].copy(), freq=freq_pd)
+    
 #    trainer=Trainer(
-#        mx.Context("gpu"),
-#        epochs=cfg['trainer']['max_epochs'],
-#        num_batches_per_epoch=cfg['trainer']['num_batches_per_epoch'],
-#        batch_size=cfg['trainer']['batch_size'],
-#        patience=cfg['trainer']['patience'],
-#        
-#        learning_rate=cfg['trainer']['learning_rate'],
-#        learning_rate_decay_factor=cfg['trainer']['learning_rate_decay_factor'],
-#        minimum_learning_rate=cfg['trainer']['minimum_learning_rate'],
-#        weight_decay=cfg['trainer']['weight_decay'],
+#        epochs=1,
 #    )
+
+    trainer=Trainer(
+        mx.Context("gpu"),
+        epochs=cfg['trainer']['max_epochs'],
+        num_batches_per_epoch=cfg['trainer']['num_batches_per_epoch'],
+        batch_size=cfg['trainer']['batch_size'],
+        patience=cfg['trainer']['patience'],
+        
+        learning_rate=cfg['trainer']['learning_rate'],
+        learning_rate_decay_factor=cfg['trainer']['learning_rate_decay_factor'],
+        minimum_learning_rate=cfg['trainer']['minimum_learning_rate'],
+        weight_decay=cfg['trainer']['weight_decay'],
+    )
     
     if cfg['model']['type'] == 'SimpleFeedForwardEstimator':
         estimator = SimpleFeedForwardEstimator(
-            freq=freq_pd,
 #            scaling=use_default_scaler,
+            freq=freq_pd,
             prediction_length=prediction_length, 
             num_hidden_dimensions = cfg['model']['num_hidden_dimensions'],
             num_parallel_samples=1,
             trainer=trainer)
 
+    if cfg['model']['type'] == 'GaussianProcessEstimator':
+        estimator = GaussianProcessEstimator(
+#            params_scaling=use_default_scaler,
+            freq=freq_pd,
+            prediction_length=prediction_length, 
+            max_iter_jitter=cfg['model']['max_iter_jitter'],
+            sample_noise=cfg['model']['sample_noise'],
+            cardinality=len(train_data['train']),
+            num_parallel_samples=1,
+            trainer=trainer)
+        
     if cfg['model']['type'] == 'DeepFactorEstimator': 
          estimator = DeepFactorEstimator(
-            freq=freq_pd,
 #            scaling=use_default_scaler,
+            freq=freq_pd,
             prediction_length=prediction_length,
             num_hidden_global=cfg['model']['num_hidden_global'], 
             num_layers_global=cfg['model']['num_layers_global'], 
@@ -318,73 +336,102 @@ def forecast(train_data, train_season_coeffs, test_data, test_season_coeffs, cfg
          
     if cfg['model']['type'] == 'DeepAREstimator':            
         estimator = DeepAREstimator(
-            freq=freq_pd,
 #            scaling=use_default_scaler,
+            freq=freq_pd,
             prediction_length=prediction_length,        
             num_cells=cfg['model']['num_cells'],
             num_layers=cfg['model']['num_layers'],        
             dropout_rate=cfg['model']['dar_dropout_rate'],
-#            use_feat_dynamic_real=True,
             use_feat_static_cat=True,
             cardinality=[len(train_data['train']), 6],
             num_parallel_samples=1,
             trainer=trainer)
         
-    if cfg['model']['type'] == 'TransformerEstimator': 
+    if cfg['model']['type'] == 'TransformerEstimator':
          estimator = TransformerEstimator(
-            freq=freq_pd,
 #            scaling=use_default_scaler,
+            freq=freq_pd,
             prediction_length=prediction_length,
             model_dim=cfg['model']['model_dim_heads'][0], 
             inner_ff_dim_scale=cfg['model']['inner_ff_dim_scale'],
             pre_seq=cfg['model']['pre_seq'], 
             post_seq=cfg['model']['post_seq'], 
-            act_type=cfg['model']['act_type'], 
+            act_type=cfg['model']['te_act_type'], 
             num_heads=cfg['model']['model_dim_heads'][1], 
             dropout_rate=cfg['model']['trans_dropout_rate'],
-#            use_feat_dynamic_real=True,
             use_feat_static_cat=True,
             cardinality=[len(train_data['train']), 6],
             num_parallel_samples=1,
             trainer=trainer)
 
+    if cfg['model']['type'] == 'WaveNetEstimator':            
+        estimator = WaveNetEstimator(
+#            scaling=use_default_scaler,
+            freq=freq_pd,
+            prediction_length=prediction_length,        
+            embedding_dimension=cfg['model']['embedding_dimension'],
+            num_bins=cfg['model']['num_bins'],        
+            n_residue=cfg['model']['n_residue'],
+            n_skip=cfg['model']['n_skip'],
+            dilation_depth=cfg['model']['dilation_depth'], 
+            n_stacks=cfg['model']['n_stacks'],
+            act_type=cfg['model']['wn_act_type'], 
+            cardinality=[len(train_data['train']), 6],
+            num_parallel_samples=1,
+            trainer=trainer)
+                    
     logger.info("Fitting: %s" % cfg['model']['type'])
     logger.info(estimator)
     model = estimator.train(gluon_train)
     
-    logger.info("Computing error mettrics on train and test sets")
-    train_mase, train_smape = score_model(model, train_data, train_season_coeffs, cfg)
-    logger.info("Train  MASE : %.6f" % train_mase)
-    logger.info("Train sMAPE : %.3f" % train_smape)
+    train_errs = score_model(model, train_data, train_season_coeffs)
+    logger.info("Training error: %s" % train_errs)
 
-    test_mase, test_smape = score_model(model, train_data, train_season_coeffs, cfg)
-    logger.info("Test  MASE  : %.6f" % test_mase)
-    logger.info("Test sMAPE  : %.3f" % test_smape)
+    test_data, test_season_coeffs = load_plos_m3_data("./m3_monthly_all", cfg['tcrit'], cfg['model']['type'])
+    test_errs = score_model(model,  test_data,  test_season_coeffs)
+    logger.info("Testing error: %s" % test_errs)
+    
+    return {
+        'train' : train_errs,
+        'test'  : test_errs
+    }
 
-    return train_mase
-
-def gluon_fcast(cfg):        
+def gluonts_fcast(cfg):   
+    from os import environ as local_environ
+    
     try:
-        err = forecast(train_data, train_season_coeffs,
-                       test_data, test_season_coeffs,
-                       cfg)
-        if np.isnan(err) or np.isinf(err):
-            return {'loss': err, 'status': STATUS_FAIL, 'cfg' : cfg, 'build_url' : environ.get("BUILD_URL")}
-    except Exception as e:
+        err_metrics = forecast(cfg)
+        if np.isnan(err_metrics['train']['mase']):
+            raise ValueError("Training MASE is NaN")
+        if np.isinf(err_metrics['train']['mase']):
+           raise ValueError("Training MASE is infinite")
+           
+    except Exception as e:                    
         exc_str = format_exc()
         logger.error('\n%s' % exc_str)
-        return {'loss': None, 'status': STATUS_FAIL, 'cfg' : cfg, 'exception': exc_str, 'build_url' : environ.get("BUILD_URL")}
-        
-    return {'loss': err, 'status': STATUS_OK, 'cfg' : cfg, 'build_url' : environ.get("BUILD_URL")}
+        return {
+            'loss'        : None,
+            'status'      : STATUS_FAIL,
+            'cfg'         : cfg,
+            'exception'   : exc_str,
+            'build_url'   : local_environ.get("BUILD_URL")
+        }
+    logger.info(err_metrics)
+#    logger.info("Error metrics:" % pformat(err_metrics, indent=4, width=160))
+    return {
+        'loss'        : err_metrics['train']['mase'],
+        'status'      : STATUS_OK,
+        'cfg'         : cfg,
+        'err_metrics' : err_metrics,
+        'build_url'   : local_environ.get("BUILD_URL")
+    }
 
 def call_hyperopt():
     dropout_rate = {
         'min' : 0.08,
         'max' : 0.12
     }
-    
-#    transformer_seqs = ['d', 'r', 'n', 'dn', 'nd', 'rn', 'nr', 'dr', 'rd',
-#                        'drn', 'dnr', 'rdn', 'rnd', 'nrd', 'ndr']
+
     space = {
 #        'preprocessing' : hp.choice('preprocessing', [None, 'min_max', 'max_abs', 'power_std']),
 #        
@@ -396,41 +443,54 @@ def call_hyperopt():
 #                                        {'model' : 'add', 'coeff_as_xreg' : True},
 #                                    ]),
 
+        'tcrit' : hp.choice('tcrit', [-1.0, 1.645-0.3, 1.645, 1.645+0.3]), # < 0.0 == no deseasonalisation
+        
         'trainer' : {
             'max_epochs'                 : hp.choice('max_epochs', [128, 256, 512, 1024, 2048]),
             'num_batches_per_epoch'      : hp.choice('num_batches_per_epoch', [32, 64, 128, 256, 512]),
             'batch_size'                 : hp.choice('batch_size', [32, 64, 128, 256]),
             'patience'                   : hp.choice('patience', [8, 16, 32, 64]),
             
-            'learning_rate'              : hp.uniform('learning_rate', 1e-03, 1e-02),
-            'learning_rate_decay_factor' : hp.uniform('learning_rate_decay_factor', 0.5, 0.6),
+            'learning_rate'              : hp.loguniform('learning_rate', np.log(1e-04), np.log(1e-02)),
+            'learning_rate_decay_factor' : hp.uniform('learning_rate_decay_factor', 0.25, 0.75),
             'minimum_learning_rate'      : hp.loguniform('minimum_learning_rate', np.log(1e-06), np.log(1e-09)),
-            'weight_decay'               : hp.uniform('weight_decay', 5.0e-09, 15.0e-09),
+            'weight_decay'               : hp.loguniform('weight_decay', np.log(1.0e-06), np.log(1.0e-09)),
         },
 
         'model' : hp.choice('model', [
-#            {
-#                'type'                       : 'SimpleFeedForwardEstimator',
-#                'num_hidden_dimensions'      : hp.choice('num_hidden_dimensions', [[5], [10], [25], [50], [100],
-#                                                                                   [5, 5], [10, 10], [25, 25], [50, 25], [50, 50], [100, 50], [100, 100],
-#                                                                                   [100, 50, 50]])
-#            },
-#            {
-#                'type'                       : 'DeepFactorEstimator',
-#                'num_hidden_global'          : hp.choice('num_hidden_global', [5, 10, 20, 40, 80, 160, 320]),
-#                'num_layers_global'          : hp.choice('num_layers_global', [1, 2, 3]),
-#                'num_factors'                : hp.choice('num_factors', [5, 10, 20]),
-#                'num_hidden_local'           : hp.choice('num_hidden_local', [2, 5, 10]),
-#                'num_layers_local'           : hp.choice('num_layers_local', [1, 2, 3]),
-#            },
+            {
+                'type'                       : 'SimpleFeedForwardEstimator',
+                'num_hidden_dimensions'      : hp.choice('num_hidden_dimensions', [[2], [4], [8], [16], [32], [64], [128],
+                                                                                   [2, 2], [4, 2], [8, 8], [8, 4], [16, 16], [16, 8], [32, 16], [64, 32],
+                                                                                   [64, 32, 16], [128, 64, 32]]),
+            },
+    
+            {
+                'type'                       : 'GaussianProcessEstimator',
+#                'rbf_kernel_output'          : hp.choice('rbf_kernel_output', [True, False]),
+                'float_type'                 : hp.choice('float_type', [np.float32, np.float64]),
+                'max_iter_jitter'            : hp.choice('max_iter_jitter', [4, 8, 16, 32]),
+                'sample_noise'               : hp.choice('sample_noise', [True, False]),
+            },
+                    
+            {
+                'type'                       : 'DeepFactorEstimator',
+                'num_hidden_global'          : hp.choice('num_hidden_global', [2, 4, 8, 16, 32, 64, 128, 256]),
+                'num_layers_global'          : hp.choice('num_layers_global', [1, 2, 3]),
+                'num_factors'                : hp.choice('num_factors', [2, 4, 8, 16, 32]),
+                'num_hidden_local'           : hp.choice('num_hidden_local', [2, 4, 8]),
+                'num_layers_local'           : hp.choice('num_layers_local', [1, 2, 3]),
+            },
+                    
             {
                 'type'                       : 'DeepAREstimator',
                 'num_cells'                  : hp.choice('num_cells', [2, 4, 8, 16, 32, 64, 128, 256, 512]),
-                'num_layers'                 : hp.choice('num_layers', [1, 2, 3, 5, 7, 9]),
+                'num_layers'                 : hp.choice('num_layers', [1, 2, 3, 4, 5, 7, 9]),
 
                 
                 'dar_dropout_rate'           : hp.uniform('dar_dropout_rate', dropout_rate['min'], dropout_rate['max']),
             },
+                   
             {
                 'type'                       : 'TransformerEstimator',
                 'model_dim_heads'            : hp.choice('model_dim_heads', [[2, 2], [4, 2], [8, 2], [16, 2], [32, 2], [64, 2],
@@ -438,11 +498,23 @@ def call_hyperopt():
                                                                              [8, 8], [16, 8], [32, 8], [64, 8],
                                                                              [16, 16], [32, 16], [64, 16]]),
                 'inner_ff_dim_scale'         : hp.choice('inner_ff_dim_scale', [2, 3, 4, 5]),
-                'pre_seq'                    : hp.choice('pre_seq', ['dn']),
-                'post_seq'                   : hp.choice('post_seq', ['drn']),
-                'act_type'                   : hp.choice('act_type', ['softrelu']),               
+                'pre_seq'                    : hp.choice('pre_seq', ['d', 'n', 'dn', 'nd']),
+                'post_seq'                   : hp.choice('post_seq', ['d', 'r', 'n', 'dn', 'nd', 'rn', 'nr', 'dr', 'rd', 'drn', 'dnr', 'rdn', 'rnd', 'nrd', 'ndr']),
+                'te_act_type'                : hp.choice('te_act_type', ['relu', 'sigmoid', 'tanh', 'softrelu', 'softsign']),               
                 'trans_dropout_rate'         : hp.uniform('trans_dropout_rate', dropout_rate['min'], dropout_rate['max']),
             },
+
+            {
+                'type'                       : 'WaveNetEstimator',
+                'embedding_dimension'        : hp.choice('embedding_dimension', [2, 4, 8]),
+                'num_bins'                   : hp.choice('num_bins', [256, 512, 1024]),
+                'n_residue'                  : hp.choice('n_residue', [20, 24, 28]),
+                'n_skip'                     : hp.choice('n_skip', [16, 32, 64]),
+                'dilation_depth'             : hp.choice('dilation_depth', [None, 1, 2, 3, 4, 5, 7, 9]),
+                'n_stacks'                   : hp.choice('n_stacks', [1, 2, 3]),
+                'wn_act_type'                : hp.choice('wn_act_type', ['elu', 'relu', 'sigmoid', 'tanh', 'softrelu', 'softsign']),
+            },
+                   
         ])
     }
                 
@@ -454,14 +526,12 @@ def call_hyperopt():
         exp_key = "%s" % str(date.today())
         logger.info("exp_key for this job is: %s" % exp_key)
         trials = MongoTrials('mongo://heika:27017/%s-%s/jobs' % (dataset_name, version), exp_key=exp_key)
-        best = fmin(gluon_fcast, space, rstate=np.random.RandomState(rand_seed), algo=tpe.suggest, show_progressbar=False, trials=trials, max_evals=10000)
+        best = fmin(gluonts_fcast, space, rstate=np.random.RandomState(rand_seed), algo=tpe.suggest, show_progressbar=False, trials=trials, max_evals=10000)
     else:
-        best = fmin(gluon_fcast, space, algo=tpe.suggest, show_progressbar=False, max_evals=20)
+        best = fmin(gluonts_fcast, space, algo=tpe.suggest, show_progressbar=False, max_evals=100)
          
     return space_eval(space, best) 
     
 if __name__ == "__main__":
-    train_data, train_season_coeffs  = load_plos_m3_data("./m3_monthly")
-    test_data, test_season_coeffs  = load_plos_m3_data("./m3_monthly_all")
     params = call_hyperopt()
-    logger.info("Best params: %s" % params)
+    logger.info("Best params:\n%s" % pformat(params, indent=4, width=160))

@@ -1,0 +1,140 @@
+15K_nodeseason.out
+2019-12-07 20:06:47 INFO     component           : Using GPU
+2019-12-07 20:06:47 INFO     component           : Using GPU
+2019-12-07 20:06:47 INFO     component           : Using GPU
+2019-12-07 20:06:47 INFO     component           : Using GPU
+2019-12-07 20:06:47 WARNING  plos_m3             : VERSION not set, using: final
+2019-12-07 20:06:47 WARNING  plos_m3             : DATASET not set, using: final
+2019-12-07 20:06:47 INFO     plos_m3             : Fitting: DeepAREstimator
+2019-12-07 20:06:47 INFO     plos_m3             : gluonts.model.deepar._estimator.DeepAREstimator(cardinality=[1045, 6], cell_type="lstm", context_length=None, distr_output=gluonts.distribution.student_t.StudentTOutput(), dropout_rate=0.11408673454965677, embedding_dimension=None, freq="M", lags_seq=None, num_cells=512, num_layers=3, num_parallel_samples=1, prediction_length=18, scaling=True, time_features=None, trainer=gluonts.trainer._base.Trainer(batch_size=200, clip_gradient=10.0, ctx=mxnet.context.Context("gpu", 0), epochs=15000, hybridize=True, init="xavier", learning_rate=0.0009585442459283113, learning_rate_decay_factor=0.6412444747653523, minimum_learning_rate=1.857482099265628e-07, num_batches_per_epoch=80, patience=80, weight_decay=8.213239578665893e-08), use_feat_dynamic_real=False, use_feat_static_cat=True, use_feat_static_real=False)
+2019-12-07 20:06:47 INFO     _base               : Start model training
+2019-12-07 20:06:49 INFO     _base               : Epoch[0] Learning rate is 0.0009585442459283113
+2019-12-07 20:06:50 INFO     _base               : Number of parameters in DeepARTrainingNetwork: 5458479
+2019-12-07 20:06:58 INFO     _base               : Epoch[0] Elapsed time 9.162 seconds
+2019-12-07 20:06:58 INFO     _base               : Epoch[0] Evaluation metric 'epoch_loss'=8.5143
+2019-12-07 20:08:19 INFO     _base               : Epoch[10] Learning rate is 0.0009585442459283113
+2019-12-07 20:08:28 INFO     _base               : Epoch[10] Elapsed time 8.980 seconds
+.......
+2019-12-09 10:07:14 INFO     _base               : Epoch[14990] Learning rate is 1.857482099265628e-07
+2019-12-09 10:07:23 INFO     _base               : Epoch[14990] Elapsed time 9.317 seconds
+2019-12-09 10:07:23 INFO     _base               : Epoch[14990] Evaluation metric 'epoch_loss'=3.3315
+2019-12-09 10:08:47 INFO     _base               : Loading parameters from best epoch (14127)
+2019-12-09 10:08:47 INFO     _base               : Final loss: 3.3127 occurred at epoch 14127
+2019-12-09 10:08:47 INFO     _base               : End model training
+2019-12-09 10:08:48 INFO     plos_m3             : MASE  : 1.009359
+2019-12-09 10:08:48 INFO     plos_m3             : sMAPE : 12.307
+2019-12-09 10:08:48 INFO     build_final         : Loss: 1.0094
+
+
+1K_nodeseason.out
+2019-12-07 16:24:55 INFO     component           : Using GPU
+2019-12-07 16:24:55 INFO     component           : Using GPU
+2019-12-07 16:24:55 INFO     component           : Using GPU
+2019-12-07 16:24:55 INFO     component           : Using GPU
+2019-12-07 16:24:55 WARNING  plos_m3             : VERSION not set, using: final
+2019-12-07 16:24:55 WARNING  plos_m3             : DATASET not set, using: final
+2019-12-07 16:24:55 INFO     plos_m3             : Fitting: DeepAREstimator
+2019-12-07 16:24:55 INFO     plos_m3             : gluonts.model.deepar._estimator.DeepAREstimator(cardinality=[1045, 6], cell_type="lstm", context_length=None, distr_output=gluonts.distribution.student_t.StudentTOutput(), dropout_rate=0.11408673454965677, embedding_dimension=None, freq="M", lags_seq=None, num_cells=512, num_layers=3, num_parallel_samples=1, prediction_length=18, scaling=True, time_features=None, trainer=gluonts.trainer._base.Trainer(batch_size=200, clip_gradient=10.0, ctx=mxnet.context.Context("gpu", 0), epochs=1000, hybridize=True, init="xavier", learning_rate=0.0009585442459283113, learning_rate_decay_factor=0.6412444747653523, minimum_learning_rate=1.857482099265628e-06, num_batches_per_epoch=80, patience=80, weight_decay=8.213239578665893e-08), use_feat_dynamic_real=False, use_feat_static_cat=True, use_feat_static_real=False)
+2019-12-07 16:24:55 INFO     _base               : Start model training
+2019-12-07 16:24:57 INFO     _base               : Epoch[0] Learning rate is 0.0009585442459283113
+2019-12-07 16:24:57 INFO     _base               : Number of parameters in DeepARTrainingNetwork: 5458479
+2019-12-07 16:25:06 INFO     _base               : Epoch[0] Elapsed time 9.208 seconds
+2019-12-07 16:25:06 INFO     _base               : Epoch[0] Evaluation metric 'epoch_loss'=8.5143
+2019-12-07 16:26:27 INFO     _base               : Epoch[10] Learning rate is 0.0009585442459283113
+2019-12-07 16:26:36 INFO     _base               : Epoch[10] Elapsed time 9.034 seconds
+.......
+2019-12-07 18:55:39 INFO     _base               : Epoch[990] Learning rate is 0.0009585442459283113
+2019-12-07 18:55:48 INFO     _base               : Epoch[990] Elapsed time 9.121 seconds
+2019-12-07 18:55:48 INFO     _base               : Epoch[990] Evaluation metric 'epoch_loss'=4.5247
+2019-12-07 18:57:10 INFO     _base               : Loading parameters from best epoch (972)
+2019-12-07 18:57:10 INFO     _base               : Final loss: 4.3620 occurred at epoch 972
+2019-12-07 18:57:10 INFO     _base               : End model training
+2019-12-07 18:57:12 INFO     plos_m3             : MASE  : 0.976384
+2019-12-07 18:57:12 INFO     plos_m3             : sMAPE : 11.923
+2019-12-07 18:57:12 INFO     build_final         : Loss: 0.9764
+
+
+256_deseason.out
+2019-12-03 12:15:27 INFO     component           : Using GPU
+2019-12-03 12:15:27 INFO     component           : Using GPU
+2019-12-03 12:15:27 INFO     component           : Using GPU
+2019-12-03 12:15:27 INFO     component           : Using GPU
+2019-12-03 12:15:27 WARNING  plos_m3             : VERSION not set, using: final
+2019-12-03 12:15:27 WARNING  plos_m3             : DATASET not set, using: final
+2019-12-03 12:15:32 INFO     plos_m3             : Params: {'model': {'dar_dropout_rate': 0.09603267184884913, 'num_cells': 512, 'num_layers': 5, 'type': 'DeepAREstimator'}, 'trainer': {'batch_size': 256, 'learning_rate': 0.00122504362261288, 'learning_rate_decay_factor': 0.5840807488994838, 'max_epochs': 256, 'minimum_learning_rate': 4.764018847166416e-06, 'num_batches_per_epoch': 64, 'patience': 32, 'weight_decay': 7.1153516607763915e-09}} 
+2019-12-03 12:15:32 INFO     plos_m3             : Fitting: DeepAREstimator
+2019-12-03 12:15:32 INFO     plos_m3             : gluonts.model.deepar._estimator.DeepAREstimator(cardinality=[1045, 6], cell_type="lstm", context_length=None, distr_output=gluonts.distribution.student_t.StudentTOutput(), dropout_rate=0.09603267184884913, embedding_dimension=None, freq="M", lags_seq=None, num_cells=512, num_layers=5, num_parallel_samples=1, prediction_length=18, scaling=True, time_features=None, trainer=gluonts.trainer._base.Trainer(batch_size=256, clip_gradient=10.0, ctx=mxnet.context.Context("gpu", 0), epochs=256, hybridize=True, init="xavier", learning_rate=0.00122504362261288, learning_rate_decay_factor=0.5840807488994838, minimum_learning_rate=4.764018847166416e-06, num_batches_per_epoch=64, patience=32, weight_decay=7.1153516607763915e-09), use_feat_dynamic_real=False, use_feat_static_cat=True, use_feat_static_real=False)
+2019-12-03 12:15:32 INFO     _base               : Start model training
+2019-12-03 12:15:34 INFO     _base               : Epoch[0] Learning rate is 0.00122504362261288
+2019-12-03 12:15:35 INFO     _base               : Number of parameters in DeepARTrainingNetwork: 9660975
+2019-12-03 12:15:47 INFO     _base               : Epoch[0] Elapsed time 12.897 seconds
+2019-12-03 12:15:47 INFO     _base               : Epoch[0] Evaluation metric 'epoch_loss'=9.3258
+2019-12-03 12:17:40 INFO     _base               : Epoch[10] Learning rate is 0.00122504362261288
+.......
+2019-12-03 13:09:00 INFO     _base               : Epoch[250] Elapsed time 12.781 seconds
+2019-12-03 13:09:00 INFO     _base               : Epoch[250] Evaluation metric 'epoch_loss'=4.9471
+2019-12-03 13:10:04 INFO     _base               : Loading parameters from best epoch (255)
+2019-12-03 13:10:04 INFO     _base               : Final loss: 4.9273 occurred at epoch 255
+2019-12-03 13:10:04 INFO     _base               : End model training
+2019-12-03 13:10:05 INFO     plos_m3             : MASE  : 1.007067
+2019-12-03 13:10:05 INFO     plos_m3             : sMAPE : 12.078
+2019-12-03 13:10:05 INFO     build_final         : Loss: 1.0071
+3127.31user 548.02system 54:40.43elapsed 112%CPU (0avgtext+0avgdata 2881528maxresident)k
+14584inputs+8530408outputs (73major+2251306minor)pagefaults 0swaps
+
+6K_deseason.out
+2019-12-03 13:43:05 INFO     component           : Using GPU
+2019-12-03 13:43:05 INFO     component           : Using GPU
+2019-12-03 13:43:05 INFO     component           : Using GPU
+2019-12-03 13:43:05 INFO     component           : Using GPU
+2019-12-03 13:43:05 WARNING  plos_m3             : VERSION not set, using: final
+2019-12-03 13:43:05 WARNING  plos_m3             : DATASET not set, using: final
+2019-12-03 13:43:11 INFO     plos_m3             : Params: {'model': {'dar_dropout_rate': 0.09603267184884913, 'num_cells': 512, 'num_layers': 5, 'type': 'DeepAREstimator'}, 'trainer': {'batch_size': 256, 'learning_rate': 0.00122504362261288, 'learning_rate_decay_factor': 0.5840807488994838, 'max_epochs': 6000, 'minimum_learning_rate': 4.764018847166416e-06, 'num_batches_per_epoch': 64, 'patience': 32, 'weight_decay': 7.1153516607763915e-09}} 
+2019-12-03 13:43:11 INFO     plos_m3             : Fitting: DeepAREstimator
+2019-12-03 13:43:11 INFO     plos_m3             : gluonts.model.deepar._estimator.DeepAREstimator(cardinality=[1045, 6], cell_type="lstm", context_length=None, distr_output=gluonts.distribution.student_t.StudentTOutput(), dropout_rate=0.09603267184884913, embedding_dimension=None, freq="M", lags_seq=None, num_cells=512, num_layers=5, num_parallel_samples=1, prediction_length=18, scaling=True, time_features=None, trainer=gluonts.trainer._base.Trainer(batch_size=256, clip_gradient=10.0, ctx=mxnet.context.Context("gpu", 0), epochs=6000, hybridize=True, init="xavier", learning_rate=0.00122504362261288, learning_rate_decay_factor=0.5840807488994838, minimum_learning_rate=4.764018847166416e-06, num_batches_per_epoch=64, patience=32, weight_decay=7.1153516607763915e-09), use_feat_dynamic_real=False, use_feat_static_cat=True, use_feat_static_real=False)
+2019-12-03 13:43:11 INFO     _base               : Start model training
+2019-12-03 13:43:13 INFO     _base               : Epoch[0] Learning rate is 0.00122504362261288
+2019-12-03 13:43:14 INFO     _base               : Number of parameters in DeepARTrainingNetwork: 9660975
+2019-12-03 13:43:26 INFO     _base               : Epoch[0] Elapsed time 12.907 seconds
+2019-12-03 13:43:26 INFO     _base               : Epoch[0] Evaluation metric 'epoch_loss'=9.3258
+2019-12-03 13:45:19 INFO     _base               : Epoch[10] Learning rate is 0.00122504362261288
+.......
+2019-12-04 10:56:06 INFO     _base               : Epoch[5980] Evaluation metric 'epoch_loss'=3.1390
+2019-12-04 10:58:00 INFO     _base               : Epoch[5990] Learning rate is 4.764018847166416e-06
+2019-12-04 10:58:13 INFO     _base               : Epoch[5990] Elapsed time 12.741 seconds
+2019-12-04 10:58:13 INFO     _base               : Epoch[5990] Evaluation metric 'epoch_loss'=3.1444
+2019-12-04 11:00:08 INFO     _base               : Loading parameters from best epoch (5984)
+2019-12-04 11:00:08 INFO     _base               : Final loss: 3.1240 occurred at epoch 5984
+2019-12-04 11:00:08 INFO     _base               : End model training
+2019-12-04 11:00:09 INFO     plos_m3             : MASE  : 0.990631
+2019-12-04 11:00:09 INFO     plos_m3             : sMAPE : 12.210
+2019-12-04 11:00:09 INFO     build_final         : Loss: 0.9906
+
+9K_deseason.out
+2019-12-04 21:50:59 INFO     component           : Using GPU
+2019-12-04 21:50:59 INFO     component           : Using GPU
+2019-12-04 21:50:59 INFO     component           : Using GPU
+2019-12-04 21:50:59 INFO     component           : Using GPU
+2019-12-04 21:50:59 WARNING  plos_m3             : VERSION not set, using: final
+2019-12-04 21:50:59 WARNING  plos_m3             : DATASET not set, using: final
+2019-12-04 21:51:05 INFO     plos_m3             : Params: {'model': {'dar_dropout_rate': 0.09603267184884913, 'num_cells': 512, 'num_layers': 5, 'type': 'DeepAREstimator'}, 'trainer': {'batch_size': 256, 'learning_rate': 0.00122504362261288, 'learning_rate_decay_factor': 0.8, 'max_epochs': 9000, 'minimum_learning_rate': 4.764018847166416e-08, 'num_batches_per_epoch': 64, 'patience': 32, 'weight_decay': 7.1153516607763915e-09}} 
+2019-12-04 21:51:05 INFO     plos_m3             : Fitting: DeepAREstimator
+2019-12-04 21:51:05 INFO     plos_m3             : gluonts.model.deepar._estimator.DeepAREstimator(cardinality=[1045, 6], cell_type="lstm", context_length=None, distr_output=gluonts.distribution.student_t.StudentTOutput(), dropout_rate=0.09603267184884913, embedding_dimension=None, freq="M", lags_seq=None, num_cells=512, num_layers=5, num_parallel_samples=1, prediction_length=18, scaling=True, time_features=None, trainer=gluonts.trainer._base.Trainer(batch_size=256, clip_gradient=10.0, ctx=mxnet.context.Context("gpu", 0), epochs=9000, hybridize=True, init="xavier", learning_rate=0.00122504362261288, learning_rate_decay_factor=0.8, minimum_learning_rate=4.764018847166416e-08, num_batches_per_epoch=64, patience=32, weight_decay=7.1153516607763915e-09), use_feat_dynamic_real=False, use_feat_static_cat=True, use_feat_static_real=False)
+2019-12-04 21:51:05 INFO     _base               : Start model training
+2019-12-04 21:51:07 INFO     _base               : Epoch[0] Learning rate is 0.00122504362261288
+2019-12-04 21:51:08 INFO     _base               : Number of parameters in DeepARTrainingNetwork: 9660975
+2019-12-04 21:51:20 INFO     _base               : Epoch[0] Elapsed time 13.023 seconds
+2019-12-04 21:51:20 INFO     _base               : Epoch[0] Evaluation metric 'epoch_loss'=9.3258
+2019-12-04 21:53:14 INFO     _base               : Epoch[10] Learning rate is 0.00122504362261288
+.......
+2019-12-06 05:43:47 INFO     _base               : Epoch[8980] Evaluation metric 'epoch_loss'=2.9544
+2019-12-06 05:45:42 INFO     _base               : Epoch[8990] Learning rate is 4.764018847166416e-08
+2019-12-06 05:45:55 INFO     _base               : Epoch[8990] Elapsed time 12.758 seconds
+2019-12-06 05:45:55 INFO     _base               : Epoch[8990] Evaluation metric 'epoch_loss'=2.9521
+2019-12-06 05:47:50 INFO     _base               : Loading parameters from best epoch (8869)
+2019-12-06 05:47:50 INFO     _base               : Final loss: 2.9322 occurred at epoch 8869
+2019-12-06 05:47:50 INFO     _base               : End model training
+2019-12-06 05:47:51 INFO     plos_m3             : MASE  : 0.986419
+2019-12-06 05:47:51 INFO     plos_m3             : sMAPE : 12.207
+2019-12-06 05:47:51 INFO     build_final         : Loss: 0.9864
+
