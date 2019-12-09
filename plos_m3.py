@@ -282,7 +282,7 @@ def forecast(cfg):
     logger.info("Params: %s " % cfg)
 
     # Load training data
-    train_data, train_season_coeffs  = load_plos_m3_data("./m3_monthly", cfg['tcrit'], cfg['model']['type'])
+    train_data, train_season_coeffs  = load_plos_m3_data("/var/tmp/m3_monthly", cfg['tcrit'], cfg['model']['type'])
     gluon_train = ListDataset(train_data['train'].copy(), freq=freq_pd)
     
 #    trainer=Trainer(
@@ -387,7 +387,7 @@ def forecast(cfg):
     train_errs = score_model(model, train_data, train_season_coeffs)
     logger.info("Training error: %s" % train_errs)
 
-    test_data, test_season_coeffs = load_plos_m3_data("./m3_monthly_all", cfg['tcrit'], cfg['model']['type'])
+    test_data, test_season_coeffs = load_plos_m3_data("/var/tmp/m3_monthly_all", cfg['tcrit'], cfg['model']['type'])
     test_errs = score_model(model,  test_data,  test_season_coeffs)
     logger.info("Testing error: %s" % test_errs)
     
