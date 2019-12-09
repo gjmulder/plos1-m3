@@ -181,7 +181,7 @@ def mase(insample, y_test, y_hat_test, freq):
 
 #######################################################################################
 
-rand_seed = 33
+rand_seed = 42
 mx.random.seed(rand_seed, ctx='all')
 np.random.seed(rand_seed)
 
@@ -312,10 +312,15 @@ def forecast(cfg):
             trainer=trainer)
 
     if cfg['model']['type'] == 'GaussianProcessEstimator':
+        if cfg['model']['float64']:
+            float_type = np.float64
+        else:
+            float_type = np.float32
         estimator = GaussianProcessEstimator(
 #            params_scaling=use_default_scaler,
             freq=freq_pd,
             prediction_length=prediction_length, 
+            float_type=float_type,
             max_iter_jitter=cfg['model']['max_iter_jitter'],
             sample_noise=cfg['model']['sample_noise'],
             cardinality=len(train_data['train']),
@@ -428,8 +433,8 @@ def gluonts_fcast(cfg):
 
 def call_hyperopt():
     dropout_rate = {
-        'min' : 0.08,
-        'max' : 0.12
+        'min' : 0.07,
+        'max' : 0.13
     }
 
     space = {
@@ -443,7 +448,7 @@ def call_hyperopt():
 #                                        {'model' : 'add', 'coeff_as_xreg' : True},
 #                                    ]),
 
-        'tcrit' : hp.choice('tcrit', [-1.0, 1.645-0.3, 1.645, 1.645+0.3]), # < 0.0 == no deseasonalisation
+        'tcrit' : hp.choice('tcrit', [-1.0, 1.645-0.2, 1.645-0.2, 1.645, 1.645+0.2, 1.645+0.2]), # < 0.0 == no deseasonalisation
         
         'trainer' : {
             'max_epochs'                 : hp.choice('max_epochs', [128, 256, 512, 1024, 2048]),
@@ -468,7 +473,7 @@ def call_hyperopt():
             {
                 'type'                       : 'GaussianProcessEstimator',
 #                'rbf_kernel_output'          : hp.choice('rbf_kernel_output', [True, False]),
-                'float_type'                 : hp.choice('float_type', [np.float32, np.float64]),
+                'float64'                    : hp.choice('float64', [True, False]),
                 'max_iter_jitter'            : hp.choice('max_iter_jitter', [4, 8, 16, 32]),
                 'sample_noise'               : hp.choice('sample_noise', [True, False]),
             },
@@ -506,10 +511,10 @@ def call_hyperopt():
 
             {
                 'type'                       : 'WaveNetEstimator',
-                'embedding_dimension'        : hp.choice('embedding_dimension', [2, 4, 8]),
+                'embedding_dimension'        : hp.choice('embedding_dimension', [2, 4, 8, 16]),
                 'num_bins'                   : hp.choice('num_bins', [256, 512, 1024]),
                 'n_residue'                  : hp.choice('n_residue', [20, 24, 28]),
-                'n_skip'                     : hp.choice('n_skip', [16, 32, 64]),
+                'n_skip'                     : hp.choice('n_skip', [4, 8, 16, 32, 64]),
                 'dilation_depth'             : hp.choice('dilation_depth', [None, 1, 2, 3, 4, 5, 7, 9]),
                 'n_stacks'                   : hp.choice('n_stacks', [1, 2, 3]),
                 'wn_act_type'                : hp.choice('wn_act_type', ['elu', 'relu', 'sigmoid', 'tanh', 'softrelu', 'softsign']),
@@ -528,7 +533,7 @@ def call_hyperopt():
         trials = MongoTrials('mongo://heika:27017/%s-%s/jobs' % (dataset_name, version), exp_key=exp_key)
         best = fmin(gluonts_fcast, space, rstate=np.random.RandomState(rand_seed), algo=tpe.suggest, show_progressbar=False, trials=trials, max_evals=10000)
     else:
-        best = fmin(gluonts_fcast, space, algo=tpe.suggest, show_progressbar=False, max_evals=100)
+        best = fmin(gluonts_fcast, space, algo=tpe.suggest, show_progressbar=False, max_evals=20)
          
     return space_eval(space, best) 
     
