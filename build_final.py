@@ -54,27 +54,26 @@ if __name__ == "__main__":
 #			"weight_decay" : 7.1153516607763915e-9
 #		}
 #	}
-#    "loss" : 1.0176126497101416,
+#    "loss" : 1.0486867427825928,
 #    "status" : "ok",
     cfg = {
             "model" : {
-                    "dar_dropout_rate" : 0.11271613303817168,
+                    "dar_dropout_rate" : 0.09499467255516174,
                     "num_cells" : 512,
                     "num_layers" : 3,
                     "type" : "DeepAREstimator"
             },
             "trainer" : {
-                    "batch_size" : 200,
-                    "learning_rate" : 0.0007973069989280367,
-                    "learning_rate_decay_factor" : 0.7203949865256299,
-                    "max_epochs" : 9000,
-                    "minimum_learning_rate" : 0.0000012099127344131707,
-                    "num_batches_per_epoch" : 80,
-                    "patience" : 80,
-                    "weight_decay" : 8.150350130265227e-8
-    
-    
+                    "batch_size" : 64,
+                    "learning_rate" : 0.0011718184795872822,
+                    "learning_rate_decay_factor" : 0.515723532905574,
+                    "max_epochs" : 256,
+                    "minimum_learning_rate" : 0.0000004135673055099429,
+                    "num_batches_per_epoch" : 256,
+                    "patience" : 32,
+                    "weight_decay" : 1.0025366169893385e-8
             }
     }
+            
     loss = forecast(data, season_coeffs, cfg)
     logger.info("Loss: %.4f" % loss)
