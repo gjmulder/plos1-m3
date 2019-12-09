@@ -1,0 +1,99 @@
+2019-12-03 12:15:27 INFO     component           : Using GPU
+2019-12-03 12:15:27 INFO     component           : Using GPU
+2019-12-03 12:15:27 INFO     component           : Using GPU
+2019-12-03 12:15:27 INFO     component           : Using GPU
+2019-12-03 12:15:27 WARNING  plos_m3             : VERSION not set, using: final
+2019-12-03 12:15:27 WARNING  plos_m3             : DATASET not set, using: final
+2019-12-03 12:15:32 INFO     plos_m3             : Params: {'model': {'dar_dropout_rate': 0.09603267184884913, 'num_cells': 512, 'num_layers': 5, 'type': 'DeepAREstimator'}, 'trainer': {'batch_size': 256, 'learning_rate': 0.00122504362261288, 'learning_rate_decay_factor': 0.5840807488994838, 'max_epochs': 256, 'minimum_learning_rate': 4.764018847166416e-06, 'num_batches_per_epoch': 64, 'patience': 32, 'weight_decay': 7.1153516607763915e-09}} 
+2019-12-03 12:15:32 INFO     plos_m3             : Fitting: DeepAREstimator
+2019-12-03 12:15:32 INFO     plos_m3             : gluonts.model.deepar._estimator.DeepAREstimator(cardinality=[1045, 6], cell_type="lstm", context_length=None, distr_output=gluonts.distribution.student_t.StudentTOutput(), dropout_rate=0.09603267184884913, embedding_dimension=None, freq="M", lags_seq=None, num_cells=512, num_layers=5, num_parallel_samples=1, prediction_length=18, scaling=True, time_features=None, trainer=gluonts.trainer._base.Trainer(batch_size=256, clip_gradient=10.0, ctx=mxnet.context.Context("gpu", 0), epochs=256, hybridize=True, init="xavier", learning_rate=0.00122504362261288, learning_rate_decay_factor=0.5840807488994838, minimum_learning_rate=4.764018847166416e-06, num_batches_per_epoch=64, patience=32, weight_decay=7.1153516607763915e-09), use_feat_dynamic_real=False, use_feat_static_cat=True, use_feat_static_real=False)
+2019-12-03 12:15:32 INFO     _base               : Start model training
+2019-12-03 12:15:34 INFO     _base               : Epoch[0] Learning rate is 0.00122504362261288
+2019-12-03 12:15:35 INFO     _base               : Number of parameters in DeepARTrainingNetwork: 9660975
+2019-12-03 12:15:47 INFO     _base               : Epoch[0] Elapsed time 12.897 seconds
+2019-12-03 12:15:47 INFO     _base               : Epoch[0] Evaluation metric 'epoch_loss'=9.3258
+2019-12-03 12:17:40 INFO     _base               : Epoch[10] Learning rate is 0.00122504362261288
+2019-12-03 12:17:53 INFO     _base               : Epoch[10] Elapsed time 12.670 seconds
+2019-12-03 12:17:53 INFO     _base               : Epoch[10] Evaluation metric 'epoch_loss'=7.0875
+2019-12-03 12:19:47 INFO     _base               : Epoch[20] Learning rate is 0.00122504362261288
+2019-12-03 12:20:00 INFO     _base               : Epoch[20] Elapsed time 12.723 seconds
+2019-12-03 12:20:00 INFO     _base               : Epoch[20] Evaluation metric 'epoch_loss'=6.8795
+2019-12-03 12:21:55 INFO     _base               : Epoch[30] Learning rate is 0.00122504362261288
+2019-12-03 12:22:07 INFO     _base               : Epoch[30] Elapsed time 12.732 seconds
+2019-12-03 12:22:07 INFO     _base               : Epoch[30] Evaluation metric 'epoch_loss'=6.7906
+2019-12-03 12:24:02 INFO     _base               : Epoch[40] Learning rate is 0.00122504362261288
+2019-12-03 12:24:15 INFO     _base               : Epoch[40] Elapsed time 12.803 seconds
+2019-12-03 12:24:15 INFO     _base               : Epoch[40] Evaluation metric 'epoch_loss'=6.6541
+2019-12-03 12:26:10 INFO     _base               : Epoch[50] Learning rate is 0.00122504362261288
+2019-12-03 12:26:23 INFO     _base               : Epoch[50] Elapsed time 12.746 seconds
+2019-12-03 12:26:23 INFO     _base               : Epoch[50] Evaluation metric 'epoch_loss'=6.5445
+2019-12-03 12:28:18 INFO     _base               : Epoch[60] Learning rate is 0.00122504362261288
+2019-12-03 12:28:31 INFO     _base               : Epoch[60] Elapsed time 12.773 seconds
+2019-12-03 12:28:31 INFO     _base               : Epoch[60] Evaluation metric 'epoch_loss'=6.3922
+2019-12-03 12:30:26 INFO     _base               : Epoch[70] Learning rate is 0.00122504362261288
+2019-12-03 12:30:39 INFO     _base               : Epoch[70] Elapsed time 12.772 seconds
+2019-12-03 12:30:39 INFO     _base               : Epoch[70] Evaluation metric 'epoch_loss'=6.2553
+2019-12-03 12:32:34 INFO     _base               : Epoch[80] Learning rate is 0.00122504362261288
+2019-12-03 12:32:47 INFO     _base               : Epoch[80] Elapsed time 12.770 seconds
+2019-12-03 12:32:47 INFO     _base               : Epoch[80] Evaluation metric 'epoch_loss'=6.1396
+2019-12-03 12:34:42 INFO     _base               : Epoch[90] Learning rate is 0.00122504362261288
+2019-12-03 12:34:55 INFO     _base               : Epoch[90] Elapsed time 12.796 seconds
+2019-12-03 12:34:55 INFO     _base               : Epoch[90] Evaluation metric 'epoch_loss'=5.9903
+2019-12-03 12:36:50 INFO     _base               : Epoch[100] Learning rate is 0.00122504362261288
+2019-12-03 12:37:03 INFO     _base               : Epoch[100] Elapsed time 12.739 seconds
+2019-12-03 12:37:03 INFO     _base               : Epoch[100] Evaluation metric 'epoch_loss'=5.8367
+2019-12-03 12:38:57 INFO     _base               : Epoch[110] Learning rate is 0.00122504362261288
+2019-12-03 12:39:10 INFO     _base               : Epoch[110] Elapsed time 12.757 seconds
+2019-12-03 12:39:10 INFO     _base               : Epoch[110] Evaluation metric 'epoch_loss'=5.6886
+2019-12-03 12:41:05 INFO     _base               : Epoch[120] Learning rate is 0.00122504362261288
+2019-12-03 12:41:18 INFO     _base               : Epoch[120] Elapsed time 12.783 seconds
+2019-12-03 12:41:18 INFO     _base               : Epoch[120] Evaluation metric 'epoch_loss'=5.6068
+2019-12-03 12:43:13 INFO     _base               : Epoch[130] Learning rate is 0.00122504362261288
+2019-12-03 12:43:26 INFO     _base               : Epoch[130] Elapsed time 12.762 seconds
+2019-12-03 12:43:26 INFO     _base               : Epoch[130] Evaluation metric 'epoch_loss'=5.5098
+2019-12-03 12:45:21 INFO     _base               : Epoch[140] Learning rate is 0.00122504362261288
+2019-12-03 12:45:34 INFO     _base               : Epoch[140] Elapsed time 12.763 seconds
+2019-12-03 12:45:34 INFO     _base               : Epoch[140] Evaluation metric 'epoch_loss'=5.4186
+2019-12-03 12:47:29 INFO     _base               : Epoch[150] Learning rate is 0.00122504362261288
+2019-12-03 12:47:42 INFO     _base               : Epoch[150] Elapsed time 12.751 seconds
+2019-12-03 12:47:42 INFO     _base               : Epoch[150] Evaluation metric 'epoch_loss'=5.3800
+2019-12-03 12:49:37 INFO     _base               : Epoch[160] Learning rate is 0.00122504362261288
+2019-12-03 12:49:50 INFO     _base               : Epoch[160] Elapsed time 12.802 seconds
+2019-12-03 12:49:50 INFO     _base               : Epoch[160] Evaluation metric 'epoch_loss'=5.2571
+2019-12-03 12:51:44 INFO     _base               : Epoch[170] Learning rate is 0.00122504362261288
+2019-12-03 12:51:57 INFO     _base               : Epoch[170] Elapsed time 12.778 seconds
+2019-12-03 12:51:57 INFO     _base               : Epoch[170] Evaluation metric 'epoch_loss'=5.2442
+2019-12-03 12:53:52 INFO     _base               : Epoch[180] Learning rate is 0.00122504362261288
+2019-12-03 12:54:05 INFO     _base               : Epoch[180] Elapsed time 12.785 seconds
+2019-12-03 12:54:05 INFO     _base               : Epoch[180] Evaluation metric 'epoch_loss'=5.1563
+2019-12-03 12:56:00 INFO     _base               : Epoch[190] Learning rate is 0.00122504362261288
+2019-12-03 12:56:13 INFO     _base               : Epoch[190] Elapsed time 12.763 seconds
+2019-12-03 12:56:13 INFO     _base               : Epoch[190] Evaluation metric 'epoch_loss'=5.1149
+2019-12-03 12:58:08 INFO     _base               : Epoch[200] Learning rate is 0.00122504362261288
+2019-12-03 12:58:21 INFO     _base               : Epoch[200] Elapsed time 12.782 seconds
+2019-12-03 12:58:21 INFO     _base               : Epoch[200] Evaluation metric 'epoch_loss'=5.1304
+2019-12-03 13:00:16 INFO     _base               : Epoch[210] Learning rate is 0.00122504362261288
+2019-12-03 13:00:29 INFO     _base               : Epoch[210] Elapsed time 12.781 seconds
+2019-12-03 13:00:29 INFO     _base               : Epoch[210] Evaluation metric 'epoch_loss'=5.1241
+2019-12-03 13:02:24 INFO     _base               : Epoch[220] Learning rate is 0.00122504362261288
+2019-12-03 13:02:37 INFO     _base               : Epoch[220] Elapsed time 12.794 seconds
+2019-12-03 13:02:37 INFO     _base               : Epoch[220] Evaluation metric 'epoch_loss'=5.0578
+2019-12-03 13:04:32 INFO     _base               : Epoch[230] Learning rate is 0.00122504362261288
+2019-12-03 13:04:44 INFO     _base               : Epoch[230] Elapsed time 12.763 seconds
+2019-12-03 13:04:44 INFO     _base               : Epoch[230] Evaluation metric 'epoch_loss'=5.0253
+2019-12-03 13:06:39 INFO     _base               : Epoch[240] Learning rate is 0.00122504362261288
+2019-12-03 13:06:52 INFO     _base               : Epoch[240] Elapsed time 12.773 seconds
+2019-12-03 13:06:52 INFO     _base               : Epoch[240] Evaluation metric 'epoch_loss'=4.9766
+2019-12-03 13:08:47 INFO     _base               : Epoch[250] Learning rate is 0.00122504362261288
+2019-12-03 13:09:00 INFO     _base               : Epoch[250] Elapsed time 12.781 seconds
+2019-12-03 13:09:00 INFO     _base               : Epoch[250] Evaluation metric 'epoch_loss'=4.9471
+2019-12-03 13:10:04 INFO     _base               : Loading parameters from best epoch (255)
+2019-12-03 13:10:04 INFO     _base               : Final loss: 4.9273 occurred at epoch 255
+2019-12-03 13:10:04 INFO     _base               : End model training
+2019-12-03 13:10:05 INFO     plos_m3             : MASE  : 1.007067
+2019-12-03 13:10:05 INFO     plos_m3             : sMAPE : 12.078
+2019-12-03 13:10:05 INFO     build_final         : Loss: 1.0071
+[1, 2, 3, 4, 5, 6, 7, 11, 12, 13, 23, 24, 25, 35, 36, 37]
+[1, 2, 3, 4, 5, 6, 7, 11, 12, 13, 23, 24, 25, 35, 36, 37]
+3127.31user 548.02system 54:40.43elapsed 112%CPU (0avgtext+0avgdata 2881528maxresident)k
+14584inputs+8530408outputs (73major+2251306minor)pagefaults 0swaps
