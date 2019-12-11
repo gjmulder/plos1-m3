@@ -51,6 +51,24 @@ def detrend(insample_data):
     a, b = np.polyfit(x, insample_data, 1)
     return a, b
 
+def acf(data, k):
+    """
+    Autocorrelation function
+    :param data: time series
+    :param k: lag
+    :return:
+    """
+    m = np.mean(data)
+    s1 = 0
+    for i in range(k, len(data)):
+        s1 = s1 + ((data[i] - m) * (data[i - k] - m))
+
+    s2 = 0
+    for i in range(0, len(data)):
+        s2 = s2 + ((data[i] - m) ** 2)
+
+    return float(s1 / s2)
+
 def seasonality_test(original_ts, ppy, tcrit):
     """
     Seasonality test
@@ -65,7 +83,7 @@ def seasonality_test(original_ts, ppy, tcrit):
 
     limit = tcrit * (sqrt((1 + 2 * s) / len(original_ts)))
 
-    return (abs(acf(original_ts, ppy))) > limit
+    return abs(acf(original_ts, ppy)) > limit
 
 def deseasonalize(original_ts, ppy, tcrit):
     """
@@ -96,7 +114,6 @@ def deseasonalize(original_ts, ppy, tcrit):
         si = np.full(ppy, 100.0)
 
     return si
-
 
 def moving_averages(ts_init, window):
     """
@@ -132,24 +149,6 @@ def moving_averages(ts_init, window):
         ts_ma = pd.Series(ts_init).rolling(window, center=True).values
         
     return ts_ma
-
-def acf(data, k):
-    """
-    Autocorrelation function
-    :param data: time series
-    :param k: lag
-    :return:
-    """
-    m = np.mean(data)
-    s1 = 0
-    for i in range(k, len(data)):
-        s1 = s1 + ((data[i] - m) * (data[i - k] - m))
-
-    s2 = 0
-    for i in range(0, len(data)):
-        s2 = s2 + ((data[i] - m) ** 2)
-
-    return float(s1 / s2)
 
 def smape(a, b):
     """
@@ -220,15 +219,15 @@ def score_model(model, data, season_coeffs):
     for j in range(len(forecasts)):
         ts_train = data['train'][j]['target']
         for i in range(0, len(ts_train)):
-            ts_train[i] = ts_train[i] * season_coeffs[j][i % freq] / 100.0 
+            ts_train[i] = ts_train[i] * season_coeffs[j][i % freq] / 100
 
         ts_test = data['test'][j]['target']
         for i in range(0, len(ts_test)):
-            ts_test[i] = ts_test[i] * season_coeffs[j][i % freq] / 100.0
+            ts_test[i] = ts_test[i] * season_coeffs[j][i % freq] / 100
             
         y_hat_test = forecasts[j].samples.reshape(-1)
         for i in range(len(ts_train), len(ts_train) + prediction_length):
-            y_hat_test[i - len(ts_train)] = y_hat_test[i - len(ts_train)] * season_coeffs[j][i % freq] / 100.0
+            y_hat_test[i - len(ts_train)] = y_hat_test[i - len(ts_train)] * season_coeffs[j][i % freq] / 100
 
         mases.append(mase(np.array(ts_test[:-prediction_length]), np.array(ts_test[-prediction_length:]), y_hat_test, freq))
         smapes.append(smape(np.array(ts_test[-prediction_length:]), y_hat_test))

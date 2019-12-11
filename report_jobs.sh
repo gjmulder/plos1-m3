@@ -13,27 +13,27 @@ for DB in plos1-m3-007g
 do
 	echo "db.jobs.find({\"result.status\" : \"$STATUS\"}).toArray()" | mongo --host heika $DB | awk '
 /mase/ {
-	printf("%8.4f,", $NF)
+	printf("%10.5f,", $NF)
 }
 
 /mape/ {
-	printf("%8.4f,", $NF)
+	printf("%10.5f,", $NF)
 }
 
 
 /exp_key/ {
-	printf("%s", $NF)
-}
-
-/"type"/ {
-	printf("%10s,", $NF)
-}
-
-/book_time/ {
 	printf("%10s", $NF)
 }
 
+/"type"/ {
+	printf("%30s,", $NF)
+}
+
+/book_time/ {
+	printf("%36s", $NF)
+}
+
 /refresh_time/ {
-	print $NF
+	printf("%36s\n", $NF)
 }'
-done | grep -v "^nan" | sed 's/ISODate//g' | tr -d "()"
+done | sed 's/,,/, /g' | sed 's/ISODate//g' | tr -d "()"

@@ -1,91 +1,128 @@
 library(lubridate)
 library(tidyverse)
+library(ggpubr)
+# library(tidyquant)
 
 mongo_data <- read_csv("mongo_results_plos1_m3.csv")
 
-mongo_data %>%
+model_counts <-
+  mongo_data %>%
   group_by(model.type) %>%
   summarise(models = n()) %>%
-  mutate(model.type.count = paste0(substring(model.type, 1, nchar(model.type)-9),
+  mutate(model.type.count = paste0(substring(model.type, 1, nchar(model.type) -
+                                               9),
                                    " (",
                                    models,
-                                   " models)")) ->
-  model_counts
+                                   " models)"))
 
-mongo_data %>%
-<<<<<<< HEAD
-  mutate(training.duration.secs = as.numeric(end.time - start.time)) %>%
-  arrange(desc(MASE)) %>%
-=======
-  mutate(training.duration.hours = as.numeric(end.time - start.time)) %>%
-  arrange(desc(sMAPE)) %>%
->>>>>>> preprocess
+mongo_plot_data <-
+  mongo_data %>%
+  mutate(search.time = (end.time - min(end.time))/60) %>%
+  mutate(training.duration.minutes = as.numeric(end.time - start.time)) %>%
+  arrange(end.time)
+
+  # filter(end.time > min(start.time) + hours(6)) %>%
+  # mutate(delta.smape.error = test.sMAPE - train.sMAPE) # %>%
+  # mutate(delta.mase.error = test.MASE - train.MASE) # %>%
+  # mutate(rank = 1:nrow(mongo_data)) %>%
+
+# mutate(experiment = as.factor(experiment))
+# gather(
+#   metric,
+#   error,
+#   test.sMAPE,
+#   train.sMAPE,
+#   # train.MASE,
+#   # test.MASE,
+#   # models,
+# )
+
+gg_train_smape_time <-
+  mongo_plot_data %>%
   inner_join(model_counts) %>%
-  mutate(rank = 1:nrow(mongo_data)) %>%
-  filter(MASE < 20) %>%
-  mutate(experiment = as.factor(experiment)) ->
-  mongo_plot_data
+  gather(metric, error, train.sMAPE, model.type.count) # %>%
+#   ggplot(aes(x = end.time, y = train.sMAPE)) +
+#   facet_grid(model.type.counts ~ ., scales = "free") +
+#   geom_smooth(size = 1,
+#               method = 'lm') +
+#   stat_regline_equation(colour = "red") +
+#   scale_y_log10() +
+#   geom_point(size = 1) +
+#   xlab("Result Time") +
+#   ylab("Training sMAPE") +
+#   ggtitle("Training sMAPE vs. Search Time")
+# print(gg_train_smape_time)
 
-<<<<<<< HEAD
-dl_MASE <- min(mongo_plot_data$MASE)
-ARIMA_MASE <- 0.89
-bnn_iter_MASE <- 0.93
+# gg_test_smape_time <-
+#   ggplot(mongo_plot_data, aes(x = end.time, y = test.sMAPE)) +
+#   # facet_grid(model.type ~ ., scales = "free") +
+#   # geom_smooth(size = 1,
+#   #             method = 'lm') +
+#   # stat_regline_equation(colour = "red") +
+#   scale_y_log10() +
+#   geom_point(size = 1) +
+#   xlab("Result Time") +
+#   ylab("Testing sMAPE") +
+#   ggtitle("Test sMAPE vs. Search Time")
+# print(gg_test_smape_time)
 
-gg <- ggplot(mongo_plot_data) +
-  geom_hline(yintercept = dl_MASE) +
-  geom_text(aes(x = 0, y = dl_MASE - 0.015, hjust = "left"), size=3,
-            label = paste0("Deep Auto Regressive = ", round(dl_MASE, 2))) +
-  geom_hline(yintercept = ARIMA_MASE) +
-  geom_text(aes(x = 0, y = ARIMA_MASE - 0.015, hjust = "left"), size=3,
-            label = paste0("ARIMA = ", ARIMA_MASE)) +
-  geom_hline(yintercept = bnn_iter_MASE) +
-  geom_text(aes(x = 0, y = bnn_iter_MASE - 0.015, hjust = "left"), size=3,
-            label = paste0("BNN Iterative = ", bnn_iter_MASE)) +
-  scale_y_log10()
-=======
-dl_smape <- min(mongo_plot_data$sMAPE)
-theta_smape <- 10.89
-bnn_iterative_smape <- 12.09
+mongo_plot_data %>%
+  select(train.sMAPE, test.sMAPE, search.time) %>%
+  gather(sMAPE, error,-search.time) %>%
+  ggplot(aes(x = search.time, y = error, colour = sMAPE)) +
+  geom_point(size = 0.75, alpha = 0.75) +
+  scale_y_log10() +
+  scale_color_manual(labels = c("Test", "Train"),
+                     values = c("red", "blue")) +
+  labs(
+    title = "Test and Training sMAPE vs. HyperOpt Search Duration",
+    x = "HyperOpt Search Duration (minutes)",
+    y = "sMAPE (log scale)",
+    colour = "Data Set\n"
+  ) ->
+  gg_smape_time
+print(gg_smape_time)
 
-gg <- ggplot(mongo_plot_data) +
-  geom_hline(yintercept = dl_smape) +
-  geom_text(aes(x = 0, y = dl_smape - 0.04, hjust = "left"), size=3,
-            label = paste0("Deep Auto Regressive = ", round(dl_smape, 2))) +
-  geom_hline(yintercept = theta_smape) +
-  geom_text(aes(x = 0, y = theta_smape - 0.04, hjust = "left"), size=3,
-            label = paste0("Theta = ", theta_smape)) +
-  geom_hline(yintercept = bnn_iterative_smape) +
-  geom_text(aes(x = 0, y = bnn_iterative_smape - 0.04, hjust = "left"), size=3,
-            label = paste0("BNN Iterative = ", bnn_iterative_smape))
-  # scale_y_log10()
->>>>>>> preprocess
+# mongo_plot_data %>%
+#   select(train.sMAPE, test.sMAPE, end.time) %>%
+#   ggplot(aes(x = end.time, y = test.sMAPE)) +
+#   geom_point(size = 1) +
+#   geom_barchart(aes(open = train.sMAPE, high = train.sMAPE, low = test.sMAPE, close = test.sMAPE)) +
+#   scale_y_log10() +
+#   xlab("Result Time") +
+#   ylab("sMAPE") +
+#   ggtitle("Test and Training Error sMAPE vs. Result Time") ->
+#   gg_smape_barchart_time
+# print(gg_smape_barchart_time)
 
-gg_rank <-
-  gg +
-  geom_point(aes(x = rank, y = MASE, colour = experiment),
-             size = 2) +
-  facet_grid(model.type.count ~ .) +
-  xlab("Rank") +
-  ylab("MASE (log scale)") +
-  ggtitle("Ranked model accuracy")
-
-gg_duration <-
-  gg +
-<<<<<<< HEAD
-  geom_point(aes(x = training.duration.secs, y = MASE, colour = model.type.count),
-             size = 2) +
-  # geom_smooth(aes(x = training.duration.secs, y = MASE), se = FALSE) +
-  xlab("Duration (secs)") +
-  ylab("MASE (log scale)") +
-=======
-  geom_point(aes(x = training.duration.hours, y = sMAPE, colour = model.type.count),
-             size = 2) +
-  # geom_line(aes(x = training.duration.hours, y = sMAPE)) +
-  xlab("Duration (hours)") +
-  ylab("sMAPE (log scale)") +
->>>>>>> preprocess
-  ggtitle("Trial duration versus model accuracy")
-
-print(gg_rank)
+mongo_plot_data %>%
+  select(train.sMAPE, test.sMAPE, training.duration.minutes) %>%
+  gather(sMAPE, error,-training.duration.minutes) %>%
+  ggplot(aes(x = training.duration.minutes, y = error, colour = sMAPE)) +
+  geom_point(size = 0.75, alpha = 0.75) +
+  scale_y_log10() +
+  scale_color_manual(labels = c("Test", "Train"),
+                     values = c("red", "blue")) +
+  labs(
+    title = "Test and Training sMAPE vs. Duration of GluonTS Model Training",
+    x = "Duration of GluonTS Model Training (minutes)",
+    y = "sMAPE (log scale)",
+    colour = "Data Set\n"
+  ) ->
+  gg_duration
 print(gg_duration)
 
+####################################################
+
+# final_deep_ar <- read_csv("final_run_training_loss.csv") %>%
+#   filter(series == "loss")
+#
+# gg_train_rmse <-
+#   ggplot(final_deep_ar, aes(x = epoch, y = value)) +
+#   geom_point(size = 0.1) +
+#   # facet_grid(series ~ ., scales = "free") +
+#   scale_y_log10() +
+#   xlab("Training Epoch") +
+#   ylab("Training RMSE") +
+#   ggtitle("Training RMSE as a function of Training Epoch for GluonTS DeepAR 3 layers, 512 cells/layer, no deseasonalisation")
+# print(gg_train_rmse)
