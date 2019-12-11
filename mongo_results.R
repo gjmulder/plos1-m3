@@ -52,6 +52,7 @@ gg_train_mase_per_model <-
   geom_point(size = 0.5) +
   labs(
     title = "Training MASE Trend per Model vs. HyperOpt Search Duration",
+    subtitle = paste0("Data set: ", Sys.getenv("DATASET"), ", Run: ", Sys.getenv("VERSION")),
     x = "HyperOpt Search Duration (minutes)",
     y = "Training MASE (log scale)")
 print(gg_train_mase_per_model)
@@ -67,6 +68,7 @@ mongo_plot_data %>%
                      values = c("red", "blue")) +
   labs(
     title = "Test and Training MASE vs. HyperOpt Search Duration",
+    subtitle = paste0("Data set: ", Sys.getenv("DATASET"), ", Run: ", Sys.getenv("VERSION")),
     x = "HyperOpt Search Duration (minutes)",
     y = "MASE (log scale)",
     colour = "Data Set\n"
@@ -85,6 +87,7 @@ mongo_plot_data %>%
                      values = c("red", "blue")) +
   labs(
     title = "Test and Training MASE vs. Duration of GluonTS Model Training",
+    subtitle = paste0("Data set: ", Sys.getenv("DATASET"), ", Run: ", Sys.getenv("VERSION")),
     x = "Duration of GluonTS Model Training (minutes)",
     y = "MASE (log scale)",
     colour = "Data Set\n"
