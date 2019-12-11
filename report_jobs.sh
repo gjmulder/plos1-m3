@@ -1,15 +1,15 @@
 #!/bin/sh
 
-if [ $# -eq 0 ]
+if [ $# -eq 1 ]
 then
 	STATUS="ok"
 else
-	STATUS=$1
+	STATUS=$2
 fi
 
 echo "model.type,train.MASE,train.sMAPE,test.MASE,test.sMAPE,experiment,start.time,end.time"
 #for DB in plos1-m3-001g plos1-m3-002g plos1-m3-003g
-for DB in plos1-m3-007g
+for DB in "$2"
 do
 	echo "db.jobs.find({\"result.status\" : \"$STATUS\"}).toArray()" | mongo --host heika $DB | awk '
 /mase/ {
