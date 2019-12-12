@@ -17,14 +17,16 @@ model_counts <-
 
 mongo_plot_data <-
   mongo_data %>%
-  mutate(search.time = (end.time - min(end.time))/60) %>%
-  mutate(training.duration.minutes = as.numeric(end.time - start.time))
-
-  # filter(end.time > min(start.time) + hours(6)) %>%
-  # mutate(delta.smape.error = test.sMAPE - train.sMAPE) # %>%
-  # mutate(delta.mase.error = test.MASE - train.MASE) # %>%
-  # arrange(end.time) %>%
-  # mutate(rank = 1:nrow(mongo_data)) %>%
+  # filter(search.time > 120) %>%
+  filter(train.MASE < 2.0) %>%
+  inner_join(model_counts) %>%
+  mutate(search.time = as.numeric(end.time - min(end.time)) / 3600) %>%
+  mutate(training.time = as.numeric(end.time - start.time) / 60) %>%
+  filter(end.time > min(start.time) + hours(6))
+# mutate(delta.smape.error = test.sMAPE - train.sMAPE) # %>%
+# mutate(delta.mase.error = test.MASE - train.MASE) # %>%
+# arrange(end.time) %>%
+# mutate(rank = 1:nrow(mongo_data)) %>%
 
 # mutate(experiment = as.factor(experiment))
 # gather(
@@ -39,62 +41,97 @@ mongo_plot_data <-
 
 gg_train_mase_per_model <-
   mongo_plot_data %>%
-  # filter(search.time > 120) %>%
-  inner_join(model_counts) %>%
-  select(train.MASE, search.time, model.type.count) %>%
+  # select(train.MASE, search.time, model.type.count) %>%
   # gather(metric, error, -search.time) %>%
   ggplot(aes(x = search.time, y = train.MASE)) +
   facet_wrap(~ model.type.count) +
   geom_smooth(size = 0.5,
               method = 'lm') +
   stat_regline_equation(colour = "red") +
-  scale_y_log10() +
+  ylim(0.9, 1.9) +
   geom_point(size = 0.5) +
   labs(
-    title = "Training MASE Trend per Model vs. HyperOpt Search Duration",
-    subtitle = paste0("Data set: ", Sys.getenv("DATASET"), ", Run: ", Sys.getenv("VERSION")),
-    x = "HyperOpt Search Duration (minutes)",
-    y = "Training MASE (log scale)")
+    title = "Training MASE Trend per Model vs. HyperOpt Search time",
+    subtitle = paste0(
+      "Data set: ",
+      Sys.getenv("DATASET"),
+      ", Run: ",
+      Sys.getenv("VERSION")
+    ),
+    x = "HyperOpt Search time (hours)",
+    y = "Training MASE"
+  )
 print(gg_train_mase_per_model)
-ggsave("train_mase_per_model.png", width=8, height=6)
+ggsave("train_mase_per_model.png",
+       width = 8,
+       height = 6)
 
-mongo_plot_data %>%
-  select(train.MASE, test.MASE, search.time) %>%
-  gather(MASE, error,-search.time) %>%
-  ggplot(aes(x = search.time, y = error, colour = MASE)) +
-  geom_point(size = 0.5, alpha = 0.75) +
-  scale_y_log10() +
-  scale_color_manual(labels = c("Test", "Train"),
-                     values = c("red", "blue")) +
+hours <- c(1, 2, 4, 8, 16, 32, 64, 128, 256)
+gg_hyperopt_time <-
+  mongo_plot_data %>%
+  ggplot() +
+  facet_wrap(~ model.type) +
+  geom_point(aes(x = train.MASE,
+                 y = test.MASE,
+                 size = search.time),
+             alpha = 0.5) +
+  # geom_path(aes(
+  #   x = train.MASE,
+  #   y = test.MASE),
+  #   arrow = arrow()) +
+  # scale_y_log10() +
+  # scale_x_log10() +
+  coord_cartesian(xlim = c(0.9, 1.9), ylim = c(0.9, 1.9)) +
+  scale_size(breaks = hours) +
   labs(
-    title = "Test and Training MASE vs. HyperOpt Search Duration",
-    subtitle = paste0("Data set: ", Sys.getenv("DATASET"), ", Run: ", Sys.getenv("VERSION")),
-    x = "HyperOpt Search Duration (minutes)",
-    y = "MASE (log scale)",
-    colour = "Data Set\n"
-  ) ->
-  gg_mase_time
-print(gg_mase_time)
-ggsave("test_train_mase_hyperopt_duration.png", width=8, height=6)
+    title = "Train vs. Test MASE (HyperOpt Search Time)",
+    subtitle = paste0(
+      "Data set: ",
+      Sys.getenv("DATASET"),
+      ", Run: ",
+      Sys.getenv("VERSION")
+    ),
+    # x = "Train Set MASE (log scale)",
+    # y = "Test Set MASE (log scale)"
+    x = "Train Set MASE",
+    y = "Test Set MASE",
+    size = "HyperOpt Search\nTime (hours)"
+  )
+print(gg_hyperopt_time)
+ggsave("test_train_mase_hyperopt_time.png",
+       width = 8,
+       height = 6)
 
-mongo_plot_data %>%
-  select(train.MASE, test.MASE, training.duration.minutes) %>%
-  gather(MASE, error,-training.duration.minutes) %>%
-  ggplot(aes(x = training.duration.minutes, y = error, colour = MASE)) +
-  geom_point(size = 0.5, alpha = 0.75) +
-  scale_y_log10() +
-  scale_color_manual(labels = c("Test", "Train"),
-                     values = c("red", "blue")) +
+gg_model_time <-
+  mongo_plot_data %>%
+  ggplot() +
+  facet_wrap(~ model.type) +
+  geom_point(aes(x = train.MASE,
+                 y = test.MASE,
+                 size = training.time),
+             alpha = 0.5) +
+  # scale_y_log10() +
+  # scale_x_log10() +
+  coord_cartesian(xlim = c(0.9, 1.9), ylim = c(0.9, 1.9)) +
+  scale_size(breaks = c(1, 2, 4, 8, 16, 32)) +
   labs(
-    title = "Test and Training MASE vs. Duration of GluonTS Model Training",
-    subtitle = paste0("Data set: ", Sys.getenv("DATASET"), ", Run: ", Sys.getenv("VERSION")),
-    x = "Duration of GluonTS Model Training (minutes)",
-    y = "MASE (log scale)",
-    colour = "Data Set\n"
-  ) ->
-  gg_mase_duration
-print(gg_mase_duration)
-ggsave("test_train_mase_run_duration.png", width=8, height=6)
+    title = "Train vs. Test MASE (GluonTS model Build Time)",
+    subtitle = paste0(
+      "Data set: ",
+      Sys.getenv("DATASET"),
+      ", Run: ",
+      Sys.getenv("VERSION")
+    ),
+    # x = "Train Set MASE (log scale)",
+    # y = "Test Set MASE (log scale)"
+    x = "Train Set MASE",
+    y = "Test Set MASE",
+    size = "GluonTS Build\nTime (hours)"
+  )
+print(gg_model_time)
+ggsave("test_train_mase_model_time.png",
+       width = 8,
+       height = 6)
 
 ####################################################
 
