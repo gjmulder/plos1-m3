@@ -438,15 +438,15 @@ def call_hyperopt():
     }
 
     space = {
-        'preprocessing' : hp.choice('preprocessing', [None, 'min_max', 'max_abs', 'power_std']),
-        
-        'deseasonalise' : hp.choice('deseasonalise', [
-                                        {'model' : None},
-                                        {'model' : 'mult', 'coeff_as_xreg' : False},
-                                        {'model' : 'mult', 'coeff_as_xreg' : True},
-                                        {'model' : 'add', 'coeff_as_xreg' : False},
-                                        {'model' : 'add', 'coeff_as_xreg' : True},
-                                    ]),
+#        'preprocessing' : hp.choice('preprocessing', [None, 'min_max', 'max_abs', 'power_std']),
+#        
+#        'deseasonalise' : hp.choice('deseasonalise', [
+#                                        {'model' : None},
+#                                        {'model' : 'mult', 'coeff_as_xreg' : False},
+#                                        {'model' : 'mult', 'coeff_as_xreg' : True},
+#                                        {'model' : 'add', 'coeff_as_xreg' : False},
+#                                        {'model' : 'add', 'coeff_as_xreg' : True},
+#                                    ]),
 
         'tcrit' : hp.choice('tcrit', [-1.0, 1.645-0.2, 1.645-0.2, 1.645, 1.645+0.2, 1.645+0.2]), # < 0.0 == no deseasonalisation
         
