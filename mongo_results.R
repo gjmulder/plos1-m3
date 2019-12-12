@@ -44,7 +44,7 @@ gg_train_mase_per_model <-
   # select(train.MASE, search.time, model.type.count) %>%
   # gather(metric, error, -search.time) %>%
   ggplot(aes(x = search.time, y = train.MASE)) +
-  facet_wrap(~ model.type.count) +
+  facet_wrap( ~ model.type.count) +
   geom_smooth(size = 0.5,
               method = 'lm') +
   stat_regline_equation(colour = "red") +
@@ -70,11 +70,11 @@ hours <- c(1, 2, 4, 8, 16, 32, 64, 128, 256)
 gg_hyperopt_time <-
   mongo_plot_data %>%
   ggplot() +
-  facet_wrap(~ model.type) +
+  facet_wrap( ~ model.type) +
   geom_point(aes(x = train.MASE,
                  y = test.MASE,
                  size = search.time),
-             alpha = 0.5) +
+             shape = "circle plus") +
   # geom_path(aes(
   #   x = train.MASE,
   #   y = test.MASE),
@@ -105,11 +105,11 @@ ggsave("test_train_mase_hyperopt_time.png",
 gg_model_time <-
   mongo_plot_data %>%
   ggplot() +
-  facet_wrap(~ model.type) +
+  facet_wrap( ~ model.type) +
   geom_point(aes(x = train.MASE,
                  y = test.MASE,
                  size = training.time),
-             alpha = 0.5) +
+             shape = "circle plus") +
   # scale_y_log10() +
   # scale_x_log10() +
   coord_cartesian(xlim = c(0.9, 1.9), ylim = c(0.9, 1.9)) +
