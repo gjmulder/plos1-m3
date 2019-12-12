@@ -7,7 +7,7 @@ mongo_data <- read_csv("mongo_results_plos1_m3.csv")
 
 model_counts <-
   mongo_data %>%
-  filter(train.MASE < 2.0) %>%
+  filter(train.MASE < 1.9) %>%
   group_by(model.type) %>%
   summarise(models = n()) %>%
   mutate(model.type.count = paste0(substring(model.type, 1, nchar(model.type) -
@@ -22,11 +22,12 @@ mongo_plot_data <-
   inner_join(model_counts) %>%
   mutate(search.time = as.numeric(end.time - min(end.time)) / 3600) %>%
   mutate(training.time = as.numeric(end.time - start.time) / 60) %>%
+  mutate(run.num = row_number()) %>%
   filter(end.time > min(start.time) + hours(6))
 # mutate(delta.smape.error = test.sMAPE - train.sMAPE) # %>%
 # mutate(delta.mase.error = test.MASE - train.MASE) # %>%
 # arrange(end.time) %>%
-# mutate(rank = 1:nrow(mongo_data)) %>%
+#  %>%
 
 # mutate(experiment = as.factor(experiment))
 # gather(
@@ -67,19 +68,45 @@ ggsave("train_mase_per_model.png",
        height = 6)
 
 hours <- c(1, 2, 4, 8, 16, 32, 64, 128, 256)
-gg_hyperopt_time <-
+gg_hyperopt_path <-
+  mongo_plot_data %>%
+  ggplot(aes(
+    x = train.MASE,
+    y = test.MASE)) +
+  facet_wrap( ~ model.type, scales = "free") +
+  geom_point(size=0.5) +
+  geom_abline(intercept = 0.0, slope = 1.0, linetype = "dotted") +
+  geom_path(size=0.1, arrow = arrow(type = "closed", length = unit(0.125, "inches"))) +
+  # geom_text(aes(label=run.num), position = position_dodge(0.1), size=3) +
+  # scale_y_log10() +
+  # scale_x_log10() +
+  coord_cartesian(xlim = c(0.9, 1.9), ylim = c(0.9, 1.9)) +
+  scale_size(breaks = hours) +
+  labs(
+    title = "Train vs. Test MASE (HyperOpt Search Path)",
+    subtitle = paste0(
+      "Data set: ",
+      Sys.getenv("DATASET"),
+      ", Run: ",
+      Sys.getenv("VERSION")
+    ),
+    x = "Train Set MASE (log scale)",
+    y = "Test Set MASE (log scale)"
+  )
+print(gg_hyperopt_path)
+ggsave("test_train_mase_hyperopt_path.png",
+       width = 8,
+       height = 6)
+
+gg_hyperopt_search_time <-
   mongo_plot_data %>%
   ggplot() +
   facet_wrap( ~ model.type) +
   geom_point(aes(x = train.MASE,
-                 y = test.MASE,
-                 size = search.time),
+                 size = search.time,
+                 y = test.MASE),
              shape = "circle plus") +
   geom_abline(intercept = 0.0, slope = 1.0, linetype = "dotted") +
-  # geom_path(aes(
-  #   x = train.MASE,
-  #   y = test.MASE),
-  #   arrow = arrow()) +
   # scale_y_log10() +
   # scale_x_log10() +
   coord_cartesian(xlim = c(0.9, 1.9), ylim = c(0.9, 1.9)) +
@@ -98,10 +125,11 @@ gg_hyperopt_time <-
     y = "Test Set MASE",
     size = "HyperOpt Search\nTime (hours)"
   )
-print(gg_hyperopt_time)
-ggsave("test_train_mase_hyperopt_time.png",
+print(gg_hyperopt_search_time)
+ggsave("test_train_mase_hyperopt_search_time.png",
        width = 8,
        height = 6)
+
 
 gg_model_time <-
   mongo_plot_data %>%
