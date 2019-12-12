@@ -7,6 +7,7 @@ mongo_data <- read_csv("mongo_results_plos1_m3.csv")
 
 model_counts <-
   mongo_data %>%
+  filter(train.MASE < 2.0) %>%
   group_by(model.type) %>%
   summarise(models = n()) %>%
   mutate(model.type.count = paste0(substring(model.type, 1, nchar(model.type) -
@@ -18,7 +19,6 @@ model_counts <-
 mongo_plot_data <-
   mongo_data %>%
   # filter(search.time > 120) %>%
-  filter(train.MASE < 2.0) %>%
   inner_join(model_counts) %>%
   mutate(search.time = as.numeric(end.time - min(end.time)) / 3600) %>%
   mutate(training.time = as.numeric(end.time - start.time) / 60) %>%
@@ -75,6 +75,7 @@ gg_hyperopt_time <-
                  y = test.MASE,
                  size = search.time),
              shape = "circle plus") +
+  geom_abline(intercept = 0.0, slope = 1.0, linetype = "dotted") +
   # geom_path(aes(
   #   x = train.MASE,
   #   y = test.MASE),
@@ -110,12 +111,13 @@ gg_model_time <-
                  y = test.MASE,
                  size = training.time),
              shape = "circle plus") +
+  geom_abline(intercept = 0.0, slope = 1.0, linetype = "dotted") +
   # scale_y_log10() +
   # scale_x_log10() +
   coord_cartesian(xlim = c(0.9, 1.9), ylim = c(0.9, 1.9)) +
   scale_size(breaks = c(1, 2, 4, 8, 16, 32)) +
   labs(
-    title = "Train vs. Test MASE (GluonTS model Build Time)",
+    title = "Train vs. Test MASE (GluonTS Model Build Time)",
     subtitle = paste0(
       "Data set: ",
       Sys.getenv("DATASET"),
@@ -126,7 +128,7 @@ gg_model_time <-
     # y = "Test Set MASE (log scale)"
     x = "Train Set MASE",
     y = "Test Set MASE",
-    size = "GluonTS Build\nTime (hours)"
+    size = "GluonTS Model\nBuild Time (hours)"
   )
 print(gg_model_time)
 ggsave("test_train_mase_model_time.png",
