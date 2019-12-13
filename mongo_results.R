@@ -92,8 +92,8 @@ gg_hyperopt_path <-
       ", Run: ",
       Sys.getenv("VERSION")
     ),
-    x = "Train Set MASE (log scale)",
-    y = "Test Set MASE (log scale)"
+    x = "Train Set MASE",
+    y = "Test Set MASE"
   )
 print(gg_hyperopt_path)
 ggsave("test_train_mase_hyperopt_path.png",
