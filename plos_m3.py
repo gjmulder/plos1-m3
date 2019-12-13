@@ -24,21 +24,7 @@ from math import sqrt
 from hyperopt import fmin, tpe, hp, space_eval, STATUS_FAIL, STATUS_OK
 from hyperopt.mongoexp import MongoTrials
 from os import environ
-from traceback import format_exc
-from json import loads
 
-import mxnet as mx
-from gluonts.dataset.common import ListDataset
-from gluonts.model.simple_feedforward import SimpleFeedForwardEstimator
-from gluonts.model.gp_forecaster import GaussianProcessEstimator
-from gluonts.model.deepar import DeepAREstimator
-from gluonts.model.transformer import TransformerEstimator
-from gluonts.model.deep_factor import DeepFactorEstimator
-from gluonts.model.wavenet import WaveNetEstimator
-from gluonts.trainer import Trainer
-from gluonts.evaluation.backtest import make_evaluation_predictions
-from gluonts import distribution
-#from gluonts.evaluation import Evaluator
 
 ########################################################################################################
         
@@ -182,8 +168,6 @@ def mase(insample, y_test, y_hat_test, freq):
 #######################################################################################
 
 rand_seed = 42
-mx.random.seed(rand_seed, ctx='all')
-np.random.seed(rand_seed)
 
 if "VERSION" in environ:    
     version = environ.get("VERSION")
@@ -210,6 +194,9 @@ freq = 12
 prediction_length = 1
 
 def score_model(model, data, season_coeffs):
+    from gluonts.dataset.common import ListDataset
+    from gluonts.evaluation.backtest import make_evaluation_predictions
+    
     gluon_test = ListDataset(data['test'].copy(), freq=freq_pd)
     forecast_it, ts_it = make_evaluation_predictions(dataset=gluon_test, predictor=model, num_samples=1)
     forecasts = list(forecast_it)
@@ -245,6 +232,8 @@ def score_model(model, data, season_coeffs):
     }
 
 def load_plos_m3_data(path, tcrit, model_type):
+    from json import loads
+    
     data = {}
     for dataset in ["train", "test"]:
         data[dataset] = []
@@ -283,30 +272,43 @@ def load_plos_m3_data(path, tcrit, model_type):
         
     return data, season_coeffs
     
-def forecast(cfg):
+def forecast(cfg):    
+    import mxnet as mx
+    from gluonts.dataset.common import ListDataset
+    from gluonts.model.simple_feedforward import SimpleFeedForwardEstimator
+    from gluonts.model.gp_forecaster import GaussianProcessEstimator
+    from gluonts.model.deepar import DeepAREstimator
+    from gluonts.model.transformer import TransformerEstimator
+    from gluonts.model.deep_factor import DeepFactorEstimator
+    from gluonts.model.wavenet import WaveNetEstimator
+    from gluonts.trainer import Trainer
+    from gluonts import distribution
+    
     logger.info("Params: %s " % cfg)
+    mx.random.seed(rand_seed, ctx='all')
+    np.random.seed(rand_seed)
 
     # Load training data
     train_data, train_season_coeffs  = load_plos_m3_data("/var/tmp/m3_monthly", cfg['tcrit'], cfg['model']['type'])
     gluon_train = ListDataset(train_data['train'].copy(), freq=freq_pd)
     
+    trainer=Trainer(
+        epochs=3,
+    )
+
 #    trainer=Trainer(
-#        epochs=3,
+#        mx.Context("gpu"),
+#        epochs=cfg['trainer']['max_epochs'],
+#        num_batches_per_epoch=cfg['trainer']['num_batches_per_epoch'],
+#        batch_size=cfg['trainer']['batch_size'],
+#        patience=cfg['trainer']['patience'],
+#        
+#        learning_rate=cfg['trainer']['learning_rate'],
+#        learning_rate_decay_factor=cfg['trainer']['learning_rate_decay_factor'],
+#        minimum_learning_rate=cfg['trainer']['minimum_learning_rate'],
+#        weight_decay=cfg['trainer']['weight_decay'],
 #    )
 
-    trainer=Trainer(
-        mx.Context("gpu"),
-        epochs=cfg['trainer']['max_epochs'],
-        num_batches_per_epoch=cfg['trainer']['num_batches_per_epoch'],
-        batch_size=cfg['trainer']['batch_size'],
-        patience=cfg['trainer']['patience'],
-        
-        learning_rate=cfg['trainer']['learning_rate'],
-        learning_rate_decay_factor=cfg['trainer']['learning_rate_decay_factor'],
-        minimum_learning_rate=cfg['trainer']['minimum_learning_rate'],
-        weight_decay=cfg['trainer']['weight_decay'],
-    )
-    
     if cfg['box_cox']:
         distr_output=distribution.TransformedDistributionOutput(distribution.GaussianOutput(),
                                                                     [distribution.InverseBoxCoxTransformOutput(lb_obs=-1.0E-5)])
@@ -418,6 +420,7 @@ def forecast(cfg):
     }
 
 def gluonts_fcast(cfg):   
+    from traceback import format_exc
     from os import environ as local_environ
     
     try:
