@@ -26,46 +26,27 @@ mx.random.seed(rand_seed, ctx='all')
 np.random.seed(rand_seed)
     
 if __name__ == "__main__":
-#"loss" : 1.0307178497314453,
-#"status" : "ok",
-#    cfg = {
-#		"model" : {
-#			"dar_dropout_rate" : 0.09603267184884913,
-#			"num_cells" : 512,
-#			"num_layers" : 5,
-#			"type" : "DeepAREstimator"
-#		},
-#		"trainer" : {
-#			"batch_size" : 256,
-#			"learning_rate" : 0.00122504362261288,
-#			"learning_rate_decay_factor" : 0.5840807488994838,
-#			"max_epochs" : 30000,
-#			"minimum_learning_rate" : 0.000004764018847166416,
-#			"num_batches_per_epoch" : 64,
-#			"patience" : 32,
-#			"weight_decay" : 7.1153516607763915e-9
-#		}
-#	}
-#    "loss" : 1.0486867427825928,
-#    "status" : "ok",
+    #"loss" : 1.0307178497314453,
+    #"status" : "ok",
     cfg = {
-            "tcrit" : 1.645,
+            "box_cox" : False,
+            "tcrit" : -1.0, #1.645,
             "model" : {
-                    "dar_dropout_rate" : 0.09499467255516174,
-                    "num_cells" : 512,
-                    "num_layers" : 3,
-                    "type" : "DeepAREstimator"
-            },
-            "trainer" : {
-                    "batch_size" : 64,
-                    "learning_rate" : 0.0011718184795872822,
-                    "learning_rate_decay_factor" : 0.515723532905574,
-                    "max_epochs" : 256,
-                    "minimum_learning_rate" : 0.0000004135673055099429,
-                    "num_batches_per_epoch" : 256,
-                    "patience" : 32,
-                    "weight_decay" : 1.0025366169893385e-8
-            }
+                "dar_dropout_rate" : 0.11408673454965677,
+                "num_cells" : 512,
+                "num_layers" : 3,
+                "type" : "DeepAREstimator"
+        },
+        "trainer" : {
+            "batch_size" : 200,
+            "learning_rate" : 0.0009585442459283113,
+            "learning_rate_decay_factor" : 0.6412444747653523,
+            "max_epochs" : 1000,
+            "minimum_learning_rate" : 0.000001857482099265628,
+            "num_batches_per_epoch" : 80,
+            "patience" : 80,
+            "weight_decay" : 8.213239578665893e-8
+        }
     }
             
     results = gluonts_fcast(cfg)

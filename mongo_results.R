@@ -7,7 +7,6 @@ mongo_data <- read_csv("mongo_results_plos1_m3.csv")
 
 model_counts <-
   mongo_data %>%
-  filter(train.MASE < 1.9) %>%
   group_by(model.type) %>%
   summarise(models = n()) %>%
   mutate(model.type.count = paste0(substring(model.type, 1, nchar(model.type) -
@@ -42,6 +41,7 @@ mongo_plot_data <-
 
 gg_train_mase_per_model <-
   mongo_plot_data %>%
+  filter(train.MASE < 1.9) %>%
   # select(train.MASE, search.time, model.type.count) %>%
   # gather(metric, error, -search.time) %>%
   ggplot(aes(x = search.time, y = train.MASE)) +
@@ -101,14 +101,14 @@ ggsave("test_train_mase_hyperopt_path.png",
 gg_hyperopt_search_time <-
   mongo_plot_data %>%
   ggplot() +
-  facet_wrap( ~ model.type) +
+  # facet_wrap( ~ model.type) +
   geom_point(aes(x = train.MASE,
                  size = search.time,
                  y = test.MASE),
              shape = "circle plus") +
   geom_abline(intercept = 0.0, slope = 1.0, linetype = "dotted") +
-  # scale_y_log10() +
-  # scale_x_log10() +
+  scale_y_log10() +
+  scale_x_log10() +
   coord_cartesian(xlim = c(0.9, 1.9), ylim = c(0.9, 1.9)) +
   scale_size(breaks = hours) +
   labs(
@@ -133,6 +133,7 @@ ggsave("test_train_mase_hyperopt_search_time.png",
 
 gg_model_time <-
   mongo_plot_data %>%
+  filter(train.MASE < 1.9) %>%
   ggplot() +
   facet_wrap( ~ model.type) +
   geom_point(aes(x = train.MASE,

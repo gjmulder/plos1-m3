@@ -193,12 +193,16 @@ freq_pd = "M"
 freq = 12
 prediction_length = 1
 
-def score_model(model, data, season_coeffs):
+def score_model(model, model_type, data, season_coeffs):
     from gluonts.dataset.common import ListDataset
     from gluonts.evaluation.backtest import make_evaluation_predictions
     
     gluon_test = ListDataset(data['test'].copy(), freq=freq_pd)
+#    if model_type != "GaussianProcessEstimator":
     forecast_it, ts_it = make_evaluation_predictions(dataset=gluon_test, predictor=model, num_samples=1)
+#    else:
+#        forecast_it, ts_it = make_evaluation_predictions(dataset=gluon_test, predictor=model)
+        
     forecasts = list(forecast_it)
     
     # Add back seasonality and compute error metrics
@@ -277,6 +281,7 @@ def forecast(cfg):
     from gluonts.dataset.common import ListDataset
     from gluonts.model.simple_feedforward import SimpleFeedForwardEstimator
     from gluonts.model.gp_forecaster import GaussianProcessEstimator
+#    from gluonts.kernels import RBFKernelOutput, KernelOutputDict
     from gluonts.model.deepar import DeepAREstimator
     from gluonts.model.transformer import TransformerEstimator
     from gluonts.model.deep_factor import DeepFactorEstimator
@@ -314,10 +319,15 @@ def forecast(cfg):
                                                                     [distribution.InverseBoxCoxTransformOutput(lb_obs=-1.0E-5)])
     else:
         distr_output=distribution.StudentTOutput()
+    
+    # Disable seasonal lags if we're deseasonalising
+    if cfg['tcrit'] > 0.0:
+        lags_seq = [1, 2, 3, 4, 5, 6, 7]
+    else:
+        lags_seq = None
         
     if cfg['model']['type'] == 'SimpleFeedForwardEstimator':
         estimator = SimpleFeedForwardEstimator(
-#            scaling=use_default_scaler,
             freq=freq_pd,
             prediction_length=prediction_length, 
             num_hidden_dimensions = cfg['model']['num_hidden_dimensions'],
@@ -326,15 +336,14 @@ def forecast(cfg):
             distr_output=distr_output)
 
     if cfg['model']['type'] == 'GaussianProcessEstimator':
-#        if cfg['model']['float64']:
-#            float_type = np.float64
+#        if cfg['model']['rbf_kernel_output']:
+#            kernel_output = RBFKernelOutput()
 #        else:
-#            float_type = np.float32
+#            kernel_output = KernelOutputDict()
+            
         estimator = GaussianProcessEstimator(
-#            params_scaling=use_default_scaler,
             freq=freq_pd,
             prediction_length=prediction_length, 
-#            float_type=float_type,
             max_iter_jitter=cfg['model']['max_iter_jitter'],
             sample_noise=cfg['model']['sample_noise'],
             cardinality=len(train_data['train']),
@@ -343,7 +352,6 @@ def forecast(cfg):
         
     if cfg['model']['type'] == 'DeepFactorEstimator': 
          estimator = DeepFactorEstimator(
-#            scaling=use_default_scaler,
             freq=freq_pd,
             prediction_length=prediction_length,
             num_hidden_global=cfg['model']['num_hidden_global'], 
@@ -356,9 +364,9 @@ def forecast(cfg):
          
     if cfg['model']['type'] == 'DeepAREstimator':            
         estimator = DeepAREstimator(
-#            scaling=use_default_scaler,
             freq=freq_pd,
             prediction_length=prediction_length,        
+            lags_seq=lags_seq,
             num_cells=cfg['model']['num_cells'],
             num_layers=cfg['model']['num_layers'],        
             dropout_rate=cfg['model']['dar_dropout_rate'],
@@ -370,9 +378,9 @@ def forecast(cfg):
         
     if cfg['model']['type'] == 'TransformerEstimator':
          estimator = TransformerEstimator(
-#            scaling=use_default_scaler,
             freq=freq_pd,
             prediction_length=prediction_length,
+            lags_seq=lags_seq,
             model_dim=cfg['model']['model_dim_heads'][0], 
             inner_ff_dim_scale=cfg['model']['inner_ff_dim_scale'],
             pre_seq=cfg['model']['pre_seq'], 
@@ -388,7 +396,6 @@ def forecast(cfg):
 
     if cfg['model']['type'] == 'WaveNetEstimator':            
         estimator = WaveNetEstimator(
-#            scaling=use_default_scaler,
             freq=freq_pd,
             prediction_length=prediction_length,        
             embedding_dimension=cfg['model']['embedding_dimension'],
@@ -401,17 +408,17 @@ def forecast(cfg):
 #            seasonality=(cfg['tcrit'] < 0.0),
             cardinality=[len(train_data['train']), 6],
             num_parallel_samples=1,
-            distr_output=distr_output)
+            trainer=trainer)
                     
     logger.info("Fitting: %s" % cfg['model']['type'])
     logger.info(estimator)
     model = estimator.train(gluon_train)
     
-    train_errs = score_model(model, train_data, train_season_coeffs)
+    train_errs = score_model(model, cfg['model']['type'], train_data, train_season_coeffs)
     logger.info("Training error: %s" % train_errs)
 
     test_data, test_season_coeffs = load_plos_m3_data("/var/tmp/m3_monthly_all", cfg['tcrit'], cfg['model']['type'])
-    test_errs = score_model(model,  test_data,  test_season_coeffs)
+    test_errs = score_model(model,  cfg['model']['type'], test_data,  test_season_coeffs)
     logger.info("Testing error: %s" % test_errs)
     
     return {
@@ -457,21 +464,12 @@ def call_hyperopt():
     }
 
     space = {
-#        'preprocessing' : hp.choice('preprocessing', [None, 'min_max', 'max_abs', 'power_std']),
-#        
-#        'deseasonalise' : hp.choice('deseasonalise', [
-#                                        {'model' : None},
-#                                        {'model' : 'mult', 'coeff_as_xreg' : False},
-#                                        {'model' : 'mult', 'coeff_as_xreg' : True},
-#                                        {'model' : 'add', 'coeff_as_xreg' : False},
-#                                        {'model' : 'add', 'coeff_as_xreg' : True},
-#                                    ]),
-
-        'tcrit'   : hp.choice('tcrit', [-1.0, 1.645-0.2, 1.645-0.2, 1.645, 1.645+0.2, 1.645+0.2]), # < 0.0 == no deseasonalisation
-        'box_cox' : hp.choice('box_cox', [True, False]), # < 0.0 == no deseasonalisation
+        # Preprocessing
+        'tcrit'   : hp.choice('tcrit', [-1.0, 1.645-0.2, 1.645, 1.645+0.2]), # < 0.0 == no deseasonalisation
+        'box_cox' : hp.choice('box_cox', [True, False]),
         
         'trainer' : {
-            'max_epochs'                 : hp.choice('max_epochs', [128, 256, 512, 1024, 2048]),
+            'max_epochs'                 : hp.choice('max_epochs', [64, 128, 256, 512, 1024, 2048]),
             'num_batches_per_epoch'      : hp.choice('num_batches_per_epoch', [32, 64, 128, 256, 512]),
             'batch_size'                 : hp.choice('batch_size', [32, 64, 128, 256]),
             'patience'                   : hp.choice('patience', [8, 16, 32, 64]),
@@ -493,19 +491,18 @@ def call_hyperopt():
             {
                 'type'                       : 'GaussianProcessEstimator',
 #                'rbf_kernel_output'          : hp.choice('rbf_kernel_output', [True, False]),
-#                'float64'                    : hp.choice('float64', [True, False]),
                 'max_iter_jitter'            : hp.choice('max_iter_jitter', [4, 8, 16, 32]),
                 'sample_noise'               : hp.choice('sample_noise', [True, False]),
             },
                     
-#            {
-#                'type'                       : 'DeepFactorEstimator',
-#                'num_hidden_global'          : hp.choice('num_hidden_global', [2, 4, 8, 16, 32, 64, 128, 256]),
-#                'num_layers_global'          : hp.choice('num_layers_global', [1, 2, 3]),
-#                'num_factors'                : hp.choice('num_factors', [2, 4, 8, 16, 32]),
-#                'num_hidden_local'           : hp.choice('num_hidden_local', [2, 4, 8]),
-#                'num_layers_local'           : hp.choice('num_layers_local', [1, 2, 3]),
-#            },
+            {
+                'type'                       : 'DeepFactorEstimator',
+                'num_hidden_global'          : hp.choice('num_hidden_global', [2, 4, 8, 16, 32, 64, 128, 256]),
+                'num_layers_global'          : hp.choice('num_layers_global', [1, 2, 3]),
+                'num_factors'                : hp.choice('num_factors', [2, 4, 8, 16, 32]),
+                'num_hidden_local'           : hp.choice('num_hidden_local', [2, 4, 8]),
+                'num_layers_local'           : hp.choice('num_layers_local', [1, 2, 3]),
+            },
                     
             {
                 'type'                       : 'DeepAREstimator',
@@ -529,16 +526,16 @@ def call_hyperopt():
                 'trans_dropout_rate'         : hp.uniform('trans_dropout_rate', dropout_rate['min'], dropout_rate['max']),
             },
 
-#            {
-#                'type'                       : 'WaveNetEstimator',
-#                'embedding_dimension'        : hp.choice('embedding_dimension', [2, 4, 8, 16, 32, 64]),
-#                'num_bins'                   : hp.choice('num_bins', [256, 512, 1024, 2048]),
-#                'n_residue'                  : hp.choice('n_residue', [20, 24, 28]),
-#                'n_skip'                     : hp.choice('n_skip', [4, 8, 16, 32, 64]),
-#                'dilation_depth'             : hp.choice('dilation_depth', [None, 1, 2, 3, 4, 5, 7, 9]),
-#                'n_stacks'                   : hp.choice('n_stacks', [1, 2, 3]),
-#                'wn_act_type'                : hp.choice('wn_act_type', ['elu', 'relu', 'sigmoid', 'tanh', 'softrelu', 'softsign']),
-#            },
+            {
+                'type'                       : 'WaveNetEstimator',
+                'embedding_dimension'        : hp.choice('embedding_dimension', [2, 4, 8, 16, 32, 64]),
+                'num_bins'                   : hp.choice('num_bins', [256, 512, 1024, 2048]),
+                'n_residue'                  : hp.choice('n_residue', [20, 24, 28]),
+                'n_skip'                     : hp.choice('n_skip', [4, 8, 16, 32, 64]),
+                'dilation_depth'             : hp.choice('dilation_depth', [None, 1, 2, 3, 4, 5, 7, 9]),
+                'n_stacks'                   : hp.choice('n_stacks', [1, 2, 3]),
+                'wn_act_type'                : hp.choice('wn_act_type', ['elu', 'relu', 'sigmoid', 'tanh', 'softrelu', 'softsign']),
+            },
         ])
     }
     
