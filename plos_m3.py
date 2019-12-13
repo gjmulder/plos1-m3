@@ -37,6 +37,7 @@ from gluonts.model.deep_factor import DeepFactorEstimator
 from gluonts.model.wavenet import WaveNetEstimator
 from gluonts.trainer import Trainer
 from gluonts.evaluation.backtest import make_evaluation_predictions
+from gluonts import distribution
 #from gluonts.evaluation import Evaluator
 
 ########################################################################################################
@@ -210,10 +211,10 @@ prediction_length = 1
 
 def score_model(model, data, season_coeffs):
     gluon_test = ListDataset(data['test'].copy(), freq=freq_pd)
-    forecast_it, ts_it = make_evaluation_predictions(dataset=gluon_test, predictor=model, num_eval_samples=1)
+    forecast_it, ts_it = make_evaluation_predictions(dataset=gluon_test, predictor=model, num_samples=1)
     forecasts = list(forecast_it)
     
-    # add back seasonality and compute error metrics
+    # Add back seasonality and compute error metrics
     mases = []
     smapes = []
     for j in range(len(forecasts)):
@@ -225,7 +226,13 @@ def score_model(model, data, season_coeffs):
         for i in range(0, len(ts_test)):
             ts_test[i] = ts_test[i] * season_coeffs[j][i % freq] / 100
             
+        # Get forecast and set any negative forecasts to 0.0
         y_hat_test = forecasts[j].samples.reshape(-1)
+        for i in range(0, len(y_hat_test)):
+            if y_hat_test[i] < 0.0:
+                logger.debug("Negative forecast")
+                y_hat_test[i] == 0.0
+                
         for i in range(len(ts_train), len(ts_train) + prediction_length):
             y_hat_test[i - len(ts_train)] = y_hat_test[i - len(ts_train)] * season_coeffs[j][i % freq] / 100
 
@@ -246,7 +253,7 @@ def load_plos_m3_data(path, tcrit, model_type):
                ts_data = loads(line)               
                data[dataset].append(ts_data)
                
-    season_coeffs = []          
+    season_coeffs = []
     for j in range(len(data["train"])):        
         ts_train = data["train"][j]["target"]
         ts_test  = data["test"][j]["target"]
@@ -261,7 +268,6 @@ def load_plos_m3_data(path, tcrit, model_type):
             seasonality_in = deseasonalize(np.array(ts_train), freq, tcrit)
         else:
             seasonality_in = np.full(freq, 100)
-
         season_coeffs.append(seasonality_in)
         
         #  Deaseasonalise training data
@@ -285,7 +291,7 @@ def forecast(cfg):
     gluon_train = ListDataset(train_data['train'].copy(), freq=freq_pd)
     
 #    trainer=Trainer(
-#        epochs=1,
+#        epochs=3,
 #    )
 
     trainer=Trainer(
@@ -301,6 +307,12 @@ def forecast(cfg):
         weight_decay=cfg['trainer']['weight_decay'],
     )
     
+    if cfg['box_cox']:
+        distr_output=distribution.TransformedDistributionOutput(distribution.GaussianOutput(),
+                                                                    [distribution.InverseBoxCoxTransformOutput(lb_obs=-1.0E-5)])
+    else:
+        distr_output=distribution.StudentTOutput()
+        
     if cfg['model']['type'] == 'SimpleFeedForwardEstimator':
         estimator = SimpleFeedForwardEstimator(
 #            scaling=use_default_scaler,
@@ -308,18 +320,19 @@ def forecast(cfg):
             prediction_length=prediction_length, 
             num_hidden_dimensions = cfg['model']['num_hidden_dimensions'],
             num_parallel_samples=1,
-            trainer=trainer)
+            trainer=trainer,
+            distr_output=distr_output)
 
     if cfg['model']['type'] == 'GaussianProcessEstimator':
-        if cfg['model']['float64']:
-            float_type = np.float64
-        else:
-            float_type = np.float32
+#        if cfg['model']['float64']:
+#            float_type = np.float64
+#        else:
+#            float_type = np.float32
         estimator = GaussianProcessEstimator(
 #            params_scaling=use_default_scaler,
             freq=freq_pd,
             prediction_length=prediction_length, 
-            float_type=float_type,
+#            float_type=float_type,
             max_iter_jitter=cfg['model']['max_iter_jitter'],
             sample_noise=cfg['model']['sample_noise'],
             cardinality=len(train_data['train']),
@@ -336,7 +349,8 @@ def forecast(cfg):
             num_factors=cfg['model']['num_factors'], 
             num_hidden_local=cfg['model']['num_hidden_local'], 
             num_layers_local=cfg['model']['num_layers_local'],
-            trainer=trainer)
+            trainer=trainer,
+            distr_output=distr_output)
          
     if cfg['model']['type'] == 'DeepAREstimator':            
         estimator = DeepAREstimator(
@@ -349,7 +363,8 @@ def forecast(cfg):
             use_feat_static_cat=True,
             cardinality=[len(train_data['train']), 6],
             num_parallel_samples=1,
-            trainer=trainer)
+            trainer=trainer,
+            distr_output=distr_output)
         
     if cfg['model']['type'] == 'TransformerEstimator':
          estimator = TransformerEstimator(
@@ -366,7 +381,8 @@ def forecast(cfg):
             use_feat_static_cat=True,
             cardinality=[len(train_data['train']), 6],
             num_parallel_samples=1,
-            trainer=trainer)
+            trainer=trainer,
+            distr_output=distr_output)
 
     if cfg['model']['type'] == 'WaveNetEstimator':            
         estimator = WaveNetEstimator(
@@ -383,7 +399,7 @@ def forecast(cfg):
 #            seasonality=(cfg['tcrit'] < 0.0),
             cardinality=[len(train_data['train']), 6],
             num_parallel_samples=1,
-            trainer=trainer)
+            distr_output=distr_output)
                     
     logger.info("Fitting: %s" % cfg['model']['type'])
     logger.info(estimator)
@@ -448,7 +464,8 @@ def call_hyperopt():
 #                                        {'model' : 'add', 'coeff_as_xreg' : True},
 #                                    ]),
 
-        'tcrit' : hp.choice('tcrit', [-1.0, 1.645-0.2, 1.645-0.2, 1.645, 1.645+0.2, 1.645+0.2]), # < 0.0 == no deseasonalisation
+        'tcrit'   : hp.choice('tcrit', [-1.0, 1.645-0.2, 1.645-0.2, 1.645, 1.645+0.2, 1.645+0.2]), # < 0.0 == no deseasonalisation
+        'box_cox' : hp.choice('box_cox', [True, False]), # < 0.0 == no deseasonalisation
         
         'trainer' : {
             'max_epochs'                 : hp.choice('max_epochs', [128, 256, 512, 1024, 2048]),
@@ -473,7 +490,7 @@ def call_hyperopt():
             {
                 'type'                       : 'GaussianProcessEstimator',
 #                'rbf_kernel_output'          : hp.choice('rbf_kernel_output', [True, False]),
-                'float64'                    : hp.choice('float64', [True, False]),
+#                'float64'                    : hp.choice('float64', [True, False]),
                 'max_iter_jitter'            : hp.choice('max_iter_jitter', [4, 8, 16, 32]),
                 'sample_noise'               : hp.choice('sample_noise', [True, False]),
             },
