@@ -35,13 +35,11 @@ mongo_plot_mase_decimate <-
 
 top_models <-
   mongo_data %>%
-  select(
-    model.type,
-    train.MASE,
-    train.sMAPE,
-    test.MASE,
-    test.sMAPE
-  ) %>%
+  select(model.type,
+         train.MASE,
+         train.sMAPE,
+         test.MASE,
+         test.sMAPE) %>%
   group_by(model.type) %>%
   top_n(-1, train.MASE) %>%
   distinct(model.type, .keep_all = TRUE) %>%
@@ -71,32 +69,34 @@ gg_train_mase_per_model <-
     x = "HyperOpt Search time (hours)",
     y = "Training MASE"
   ) +
-  facet_wrap( ~ model.type.count)
+  facet_wrap(~ model.type.count)
 print(gg_train_mase_per_model)
 ggsave("train_mase_per_model.png",
        width = 8,
        height = 6)
 
 gg_hyperopt_path <-
-  ggplot(
-    data = mongo_plot_data,
-    mapping = aes(x = train.MASE,
-                  y = test.MASE)
-  ) +
+  ggplot(data = mongo_plot_data,
+         mapping = aes(x = train.MASE, y = test.MASE)) +
   geom_abline(intercept = 0.0,
               slope = 1.0,
-              alpha=0.5) +
-  geom_point(size = 0.25,
-             alpha = 0.25) +
+              alpha = 0.5) +
   geom_path(size = 0.1,
             alpha = 0.25) +
+  geom_point(
+    data = mongo_plot_mase_decimate,
+    mapping = aes(x = train.MASE,
+                  y = test.MASE),
+    size = 0.5
+  ) +
   geom_text(
     data = mongo_plot_mase_decimate,
     mapping = aes(x = train.MASE,
                   y = test.MASE,
                   label = run.num),
     nudge_x = -min_err / 30,
-    nudge_y = min_err / 30,
+    nudge_y = min_err / 15,
+    hjust=1,
     size = 3,
     colour = "blue"
   ) +
@@ -113,7 +113,7 @@ gg_hyperopt_path <-
     x = "Train Set MASE",
     y = "Test Set MASE"
   ) +
-  facet_wrap( ~ model.type.count)
+  facet_wrap(~ model.type.count)
 print(gg_hyperopt_path)
 ggsave("test_train_mase_hyperopt_path.png",
        width = 8,
@@ -174,7 +174,7 @@ gg_model_time <-
     y = "Test Set MASE",
     size = "GluonTS Model\nBuild Time (hours)"
   ) +
-  facet_wrap( ~ model.type)
+  facet_wrap(~ model.type)
 print(gg_model_time)
 ggsave("test_train_mase_model_time.png",
        width = 8,
