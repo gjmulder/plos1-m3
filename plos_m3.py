@@ -470,7 +470,7 @@ def call_hyperopt():
         
         'trainer' : {
             'max_epochs'                 : hp.choice('max_epochs', [64, 128, 256, 512, 1024, 2048]),
-            'num_batches_per_epoch'      : hp.choice('num_batches_per_epoch', [32, 64, 128, 256, 512]),
+            'num_batches_per_epoch'      : hp.choice('num_batches_per_epoch', [32, 64, 128, 256, 512, 1024]),
             'batch_size'                 : hp.choice('batch_size', [32, 64, 128, 256]),
             'patience'                   : hp.choice('patience', [8, 16, 32, 64]),
             
@@ -530,8 +530,8 @@ def call_hyperopt():
                 'type'                       : 'WaveNetEstimator',
                 'embedding_dimension'        : hp.choice('embedding_dimension', [2, 4, 8, 16, 32, 64]),
                 'num_bins'                   : hp.choice('num_bins', [256, 512, 1024, 2048]),
-                'n_residue'                  : hp.choice('n_residue', [20, 24, 28]),
-                'n_skip'                     : hp.choice('n_skip', [4, 8, 16, 32, 64]),
+                'n_residue'                  : hp.choice('n_residue', [22, 23, 24, 25, 26]),
+                'n_skip'                     : hp.choice('n_skip', [4, 8, 16, 32, 64, 128]),
                 'dilation_depth'             : hp.choice('dilation_depth', [None, 1, 2, 3, 4, 5, 7, 9]),
                 'n_stacks'                   : hp.choice('n_stacks', [1, 2, 3]),
                 'wn_act_type'                : hp.choice('wn_act_type', ['elu', 'relu', 'sigmoid', 'tanh', 'softrelu', 'softsign']),
