@@ -102,7 +102,7 @@ gg_hyperopt_path <-
                   y = test.MASE,
                   label = run.num),
     nudge_x = min_err / 15,
-    size = 3,
+    size = 2,
     colour = "blue"
   ) +
   scale_size(breaks = hours) +
