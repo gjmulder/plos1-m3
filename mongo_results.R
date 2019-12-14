@@ -61,15 +61,22 @@ gg_train_mase_per_model <-
   ggplot(aes(x = search.time, y = train.MASE)) +
   geom_smooth(size = 0.5,
               method = 'lm') +
-  stat_regline_equation(colour = "red") +
   geom_point(size = 0.5) +
+  stat_regline_equation(
+    aes(label = paste(..eq.label.., ..adj.rr.label.., sep = "~~~~")),
+    # label.x = max(mongo_plot_data$search.time)/2,
+    label.y = min_err,
+    colour = "red",
+    na.rm = TRUE
+  ) +
+  coord_cartesian(ylim = c(min_err, max_err)) +
   labs(
     title = "Training MASE Trend per Model vs. HyperOpt Search time",
     subtitle = subtitle,
     x = "HyperOpt Search time (hours)",
     y = "Training MASE"
   ) +
-  facet_wrap(~ model.type.count)
+  facet_wrap( ~ model.type.count)
 print(gg_train_mase_per_model)
 ggsave("train_mase_per_model.png",
        width = 8,
@@ -87,7 +94,7 @@ gg_hyperopt_path <-
     data = mongo_plot_mase_decimate,
     mapping = aes(x = train.MASE,
                   y = test.MASE),
-    size = 0.5
+    size = 0.75
   ) +
   geom_text(
     data = mongo_plot_mase_decimate,
@@ -96,7 +103,7 @@ gg_hyperopt_path <-
                   label = run.num),
     nudge_x = -min_err / 30,
     nudge_y = min_err / 15,
-    hjust=1,
+    hjust = 1,
     size = 3,
     colour = "blue"
   ) +
@@ -113,7 +120,7 @@ gg_hyperopt_path <-
     x = "Train Set MASE",
     y = "Test Set MASE"
   ) +
-  facet_wrap(~ model.type.count)
+  facet_wrap( ~ model.type.count)
 print(gg_hyperopt_path)
 ggsave("test_train_mase_hyperopt_path.png",
        width = 8,
@@ -174,7 +181,7 @@ gg_model_time <-
     y = "Test Set MASE",
     size = "GluonTS Model\nBuild Time (hours)"
   ) +
-  facet_wrap(~ model.type)
+  facet_wrap( ~ model.type)
 print(gg_model_time)
 ggsave("test_train_mase_model_time.png",
        width = 8,
