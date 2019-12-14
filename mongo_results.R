@@ -3,7 +3,10 @@ library(tidyverse)
 library(ggpubr)
 # library(tidyquant)
 
-mongo_data <- read_csv("mongo_results_plos1_m3.csv")
+mongo_data <-
+  read_csv("mongo_results_plos1_m3.csv") %>%
+  mutate(run.num = row_number())
+
 min_err <- min(mongo_data$train.MASE) * 5 / 6
 max_err <- min(mongo_data$train.MASE) * 18 / 6
 
@@ -19,39 +22,44 @@ model_counts <-
 
 mongo_plot_data <-
   mongo_data %>%
-  # filter(search.time > 120) %>%
+  filter(train.MASE < (max_err * 5) & test.MASE < (max_err * 5)) %>%
   inner_join(model_counts) %>%
   mutate(search.time = (as.numeric(end.time) - min(as.numeric(end.time))) / 3600) %>%
-  mutate(training.time = (as.numeric(end.time) - as.numeric(start.time)) / 3600) %>%
-  mutate(run.num = row_number())
+  mutate(training.time = (as.numeric(end.time) - as.numeric(start.time)) / 3600)
 
-mongo_plot_data %>%
+mongo_plot_mase_decimate <-
+  mongo_plot_data %>%
+  arrange(test.MASE) %>%
+  mutate(ceiling.test.MASE10 = ceiling(test.MASE * 10)) %>%
+  distinct(model.type.count, ceiling.test.MASE10, .keep_all = TRUE)
+
+top_models <-
+  mongo_data %>%
   select(
     model.type,
     train.MASE,
     train.sMAPE,
     test.MASE,
-    test.sMAPE,
-    search.time,
-    training.time
+    test.sMAPE
   ) %>%
-  arrange(train.sMAPE) %>%
   group_by(model.type) %>%
-  top_n(1) ->
-  top_models
+  top_n(-1, train.MASE) %>%
+  distinct(model.type, .keep_all = TRUE) %>%
+  arrange(test.MASE)
+
 write_csv(top_models, path = "top_models.csv")
 
 hours <- c(1, 2, 4, 8, 16, 32, 64, 128, 256)
-
-mongo_plot_data_decimate <-
-  mongo_plot_data %>%
-  filter(run.num %% 20 == 0)
+subtitle <-
+  paste0("Data set: ",
+         Sys.getenv("DATASET"),
+         ", Run: ",
+         Sys.getenv("VERSION"))
 
 #####################################################################
 
 gg_train_mase_per_model <-
   mongo_plot_data %>%
-  filter(train.MASE < max_err) %>%
   ggplot(aes(x = search.time, y = train.MASE)) +
   geom_smooth(size = 0.5,
               method = 'lm') +
@@ -59,52 +67,41 @@ gg_train_mase_per_model <-
   geom_point(size = 0.5) +
   labs(
     title = "Training MASE Trend per Model vs. HyperOpt Search time",
-    subtitle = paste0(
-      "Data set: ",
-      Sys.getenv("DATASET"),
-      ", Run: ",
-      Sys.getenv("VERSION")
-    ),
+    subtitle = subtitle,
     x = "HyperOpt Search time (hours)",
     y = "Training MASE"
   ) +
-  facet_wrap(~ model.type.count)
+  facet_wrap( ~ model.type.count)
 print(gg_train_mase_per_model)
 ggsave("train_mase_per_model.png",
        width = 8,
        height = 6)
 
 gg_hyperopt_path <-
-  ggplot() +
+  ggplot(
+    data = mongo_plot_data,
+    mapping = aes(x = train.MASE,
+                  y = test.MASE)
+  ) +
   geom_abline(intercept = 0.0,
               slope = 1.0,
-              linetype = "dotted") +
-  geom_point(
-    data = mongo_plot_data %>% filter(train.MASE < max_err &
-                                        test.MASE < max_err),
-    mapping = aes(x = train.MASE,
-                  y = test.MASE),
-    size = 0.25,
-    alpha = 0.5
-  ) +
-  geom_path(
-    data = mongo_plot_data %>% filter(train.MASE < max_err &
-                                        test.MASE < max_err),
-    mapping = aes(x = train.MASE,
-                  y = test.MASE),
-    size = 0.1,
-    alpha = 0.5
-  ) +
+              alpha=0.5) +
+  geom_point(size = 0.25,
+             alpha = 0.25) +
+  geom_path(size = 0.1,
+            alpha = 0.25) +
   geom_text(
-    data = mongo_plot_data_decimate %>% filter(train.MASE < max_err &
-                                                 test.MASE < max_err),
+    data = mongo_plot_mase_decimate,
     mapping = aes(x = train.MASE,
                   y = test.MASE,
                   label = run.num),
-    nudge_x = min_err / 15,
-    size = 2,
+    nudge_x = -min_err / 30,
+    nudge_y = min_err / 30,
+    size = 3,
     colour = "blue"
   ) +
+  coord_cartesian(xlim = c(min_err, max_err),
+                  ylim = c(min_err, max_err)) +
   scale_size(breaks = hours) +
   labs(
     title = paste0(
@@ -112,16 +109,11 @@ gg_hyperopt_path <-
       nrow(mongo_data),
       " total models)"
     ),
-    subtitle = paste0(
-      "Data set: ",
-      Sys.getenv("DATASET"),
-      ", Run: ",
-      Sys.getenv("VERSION")
-    ),
+    subtitle = subtitle,
     x = "Train Set MASE",
     y = "Test Set MASE"
   ) +
-  facet_wrap(~ model.type.count)
+  facet_wrap( ~ model.type.count)
 print(gg_hyperopt_path)
 ggsave("test_train_mase_hyperopt_path.png",
        width = 8,
@@ -145,12 +137,7 @@ gg_hyperopt_search_time <-
   scale_size(breaks = hours) +
   labs(
     title = "Train vs. Test MASE (HyperOpt Search Time)",
-    subtitle = paste0(
-      "Data set: ",
-      Sys.getenv("DATASET"),
-      ", Run: ",
-      Sys.getenv("VERSION")
-    ),
+    subtitle = subtitle,
     # x = "Train Set MASE (log scale)",
     # y = "Test Set MASE (log scale)"
     x = "Train Set MASE",
@@ -166,7 +153,6 @@ ggsave("test_train_mase_hyperopt_search_time.png",
 
 gg_model_time <-
   mongo_plot_data %>%
-  filter(train.MASE < 2.0) %>%
   ggplot() +
   geom_abline(intercept = 0.0,
               slope = 1.0,
@@ -178,26 +164,17 @@ gg_model_time <-
     shape = "circle plus",
     alpha = 0.5
   ) +
-  # scale_y_log10() +
-  # scale_x_log10() +
   coord_cartesian(xlim = c(min_err, max_err),
                   ylim = c(min_err, max_err)) +
   scale_size(breaks = c(1, 2, 4, 8, 16, 32)) +
   labs(
     title = "Train vs. Test MASE (GluonTS Model Build Time)",
-    subtitle = paste0(
-      "Data set: ",
-      Sys.getenv("DATASET"),
-      ", Run: ",
-      Sys.getenv("VERSION")
-    ),
-    # x = "Train Set MASE (log scale)",
-    # y = "Test Set MASE (log scale)"
+    subtitle = subtitle,
     x = "Train Set MASE",
     y = "Test Set MASE",
     size = "GluonTS Model\nBuild Time (hours)"
   ) +
-  facet_wrap(~ model.type)
+  facet_wrap( ~ model.type)
 print(gg_model_time)
 ggsave("test_train_mase_model_time.png",
        width = 8,
