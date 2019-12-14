@@ -193,11 +193,19 @@ freq_pd = "M"
 freq = 12
 prediction_length = 1
 
+def goodness_of_fit(ts_train, ts_train_fit):
+    return np.mean((ts_train-ts_train_fit)**2)*100/(np.mean(ts_train)^2)
+
 def score_model(model, model_type, data, season_coeffs):
     from gluonts.dataset.common import ListDataset
-    from gluonts.evaluation.backtest import make_evaluation_predictions
+    from gluonts.evaluation.backtest import make_evaluation_predictions #, backtest_metrics
+
+#    gluon_train = ListDataset(data['train'].copy(), freq=freq_pd)
+    gluon_test = ListDataset(data['test'].copy(), freq=freq_pd)    
     
-    gluon_test = ListDataset(data['test'].copy(), freq=freq_pd)
+#    metrics = backtest_metrics(gluon_train, gluon_test, forecaster=model, num_samples=1, logging_file=None)
+#    logger.info("\n(%s, %s)" % metrics)
+    
 #    if model_type != "GaussianProcessEstimator":
     forecast_it, ts_it = make_evaluation_predictions(dataset=gluon_test, predictor=model, num_samples=1)
 #    else:
@@ -206,8 +214,7 @@ def score_model(model, model_type, data, season_coeffs):
     forecasts = list(forecast_it)
     
     # Add back seasonality and compute error metrics
-    mases = []
-    smapes = []
+    (model_fits, mases, smapes) = ([], [], [])
     for j in range(len(forecasts)):
         ts_train = data['train'][j]['target']
         for i in range(0, len(ts_train)):
@@ -227,12 +234,14 @@ def score_model(model, model_type, data, season_coeffs):
         for i in range(len(ts_train), len(ts_train) + prediction_length):
             y_hat_test[i - len(ts_train)] = y_hat_test[i - len(ts_train)] * season_coeffs[j][i % freq] / 100
 
+        model_fits.append(goodness_of_fit(ts_train, y_hat_test[:-prediction_length]))
         mases.append(mase(np.array(ts_test[:-prediction_length]), np.array(ts_test[-prediction_length:]), y_hat_test, freq))
         smapes.append(smape(np.array(ts_test[-prediction_length:]), y_hat_test))
 
     return {
-        'mase'  : np.mean(mases),
-        'smape' : float(100 * float(np.mean(smapes)))
+        'gof'     : np.mean(model_fits),
+        'mase'    : np.mean(mases),
+        'smape'   : float(100 * float(np.mean(smapes)))
     }
 
 def load_plos_m3_data(path, tcrit, model_type):
@@ -297,22 +306,22 @@ def forecast(cfg):
     train_data, train_season_coeffs  = load_plos_m3_data("/var/tmp/m3_monthly", cfg['tcrit'], cfg['model']['type'])
     gluon_train = ListDataset(train_data['train'].copy(), freq=freq_pd)
     
-#    trainer=Trainer(
-#        epochs=3,
-#    )
-
     trainer=Trainer(
-        mx.Context("gpu"),
-        epochs=cfg['trainer']['max_epochs'],
-        num_batches_per_epoch=cfg['trainer']['num_batches_per_epoch'],
-        batch_size=cfg['trainer']['batch_size'],
-        patience=cfg['trainer']['patience'],
-        
-        learning_rate=cfg['trainer']['learning_rate'],
-        learning_rate_decay_factor=cfg['trainer']['learning_rate_decay_factor'],
-        minimum_learning_rate=cfg['trainer']['minimum_learning_rate'],
-        weight_decay=cfg['trainer']['weight_decay'],
+        epochs=3,
     )
+
+#    trainer=Trainer(
+#        mx.Context("gpu"),
+#        epochs=cfg['trainer']['max_epochs'],
+#        num_batches_per_epoch=cfg['trainer']['num_batches_per_epoch'],
+#        batch_size=cfg['trainer']['batch_size'],
+#        patience=cfg['trainer']['patience'],
+#        
+#        learning_rate=cfg['trainer']['learning_rate'],
+#        learning_rate_decay_factor=cfg['trainer']['learning_rate_decay_factor'],
+#        minimum_learning_rate=cfg['trainer']['minimum_learning_rate'],
+#        weight_decay=cfg['trainer']['weight_decay'],
+#    )
 
     if cfg['box_cox']:
         distr_output=distribution.TransformedDistributionOutput(distribution.GaussianOutput(),
@@ -423,7 +432,7 @@ def forecast(cfg):
     
     return {
         'train' : train_errs,
-        'test'  : test_errs
+        'test'  : test_errs,
     }
 
 def gluonts_fcast(cfg):   
@@ -474,10 +483,10 @@ def call_hyperopt():
             'batch_size'                 : hp.choice('batch_size', [32, 64, 128, 256]),
             'patience'                   : hp.choice('patience', [8, 16, 32, 64]),
             
-            'learning_rate'              : hp.loguniform('learning_rate', np.log(1e-04), np.log(1e-02)),
+            'learning_rate'              : hp.loguniform('learning_rate', np.log(05e-04), np.log(50e-04)),
             'learning_rate_decay_factor' : hp.uniform('learning_rate_decay_factor', 0.25, 0.75),
-            'minimum_learning_rate'      : hp.loguniform('minimum_learning_rate', np.log(1e-09), np.log(1e-06)),
-            'weight_decay'               : hp.loguniform('weight_decay', np.log(1.0e-09), np.log(1.0e-06)),
+            'minimum_learning_rate'      : hp.loguniform('minimum_learning_rate', np.log(01e-05), np.log(10e-05)),
+            'weight_decay'               : hp.loguniform('weight_decay', np.log(05e-09), np.log(50e-09)),
         },
 
         'model' : hp.choice('model', [
