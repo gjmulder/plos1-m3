@@ -260,10 +260,10 @@ def load_plos_m3_data(path, tcrit, model_type):
         ts_train = data["train"][j]["target"]
         ts_test  = data["test"][j]["target"]
         
-        # Remove static features if not supported by model
-        if model_type in ['SimpleFeedForwardEstimator', 'DeepFactorEstimator', 'GaussianProcessEstimator']:
-            del(data["train"][j]['feat_static_cat'])
-            del(data["test"][j]['feat_static_cat'])
+#        # Remove static features if not supported by model
+#        if model_type in ['SimpleFeedForwardEstimator', 'DeepFactorEstimator', 'GaussianProcessEstimator']:
+#            del(data["train"][j]['feat_static_cat'])
+#            del(data["test"][j]['feat_static_cat'])
             
         # Determine seasonality coeffs
         if tcrit > 0.0:
@@ -355,7 +355,6 @@ def forecast(cfg):
             prediction_length=prediction_length, 
             max_iter_jitter=cfg['model']['max_iter_jitter'],
             sample_noise=cfg['model']['sample_noise'],
-            cardinality=len(train_data['train']),
             num_parallel_samples=1,
             trainer=trainer)
         
@@ -414,8 +413,6 @@ def forecast(cfg):
             dilation_depth=cfg['model']['dilation_depth'], 
             n_stacks=cfg['model']['n_stacks'],
             act_type=cfg['model']['wn_act_type'],
-#            seasonality=(cfg['tcrit'] < 0.0),
-            cardinality=[len(train_data['train']), 6],
             num_parallel_samples=1,
             trainer=trainer)
                     
@@ -548,6 +545,7 @@ def call_hyperopt():
         ])
     }
     
+# 18 month
 #    space = {
 #        'tcrit' : hp.choice('tcrit', [-1.0]), # < 0.0 == no deseasonalisation
 #        
@@ -574,8 +572,7 @@ def call_hyperopt():
 #            },
 #        ])
 #    }
-                
-            
+                            
     # Search MongoDB for best trial for exp_key:
     # echo 'db.jobs.find({"exp_key" : "XXX", "result.status" : "ok"}).sort( { "result.loss": 1} ).limit(1).pretty()' | mongo --host heika m4_daily
     # echo 'db.jobs.remove({"exp_key" : "XXX", "result.status" : "new"})' | mongo --host heika
