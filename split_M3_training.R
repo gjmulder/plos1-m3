@@ -16,7 +16,7 @@ options(width = 1024)
 # Config ####
 
 if (interactive()) {
-  prop_tt <- NA
+  prop_tt <- 0.1
   num3_cores <- 4
 } else
 {
@@ -53,21 +53,27 @@ tt_to_json <- function(idx, tt_list, type_list) {
   return(json)
 }
 
-tt_to_csv <- function(idx, tt_list, type_list) {
+tt_to_csv <- function(idx, tt_list, type_list, horiz_list) {
   rows <- list()
   for (x in 1:(length(tt_list[[idx]])-window_size)) {
     rows[[x]] <- c(get_date(tt_list[[idx]], x),
-                   idx,
-                   as.numeric(type_list[[idx]]),
+                   paste0("IDX", idx),
+                   as.character(type_list[[idx]]),
                    tt_list[[idx]][x:(x+window_size)])
   }
   df <- as.data.frame(t(as.data.frame(rows)))
   rownames(df) <- c() #rep(idx, nrow(df))
   colnames(df) <-
     c("START_DATE", "IDX", "TYPE", paste0("X", 1:window_size), "Y")
+
+  # Denote validate and test rows as the last two prediction horizons, repsectively
+  df["DATA_SPLIT"] <- c(rep("TRAIN", nrow(df)-2*horiz_list[[idx]]),
+                  rep("VALIDATE", horiz_list[[idx]]),
+                  rep("TEST", horiz_list[[idx]]))
   # if (idx > 198)
   #   browser()
-  return(df)
+
+    return(df)
 }
 
 process_period <- function(period, m3_data, final_mode) {
@@ -163,26 +169,14 @@ process_period <- function(period, m3_data, final_mode) {
   ###########################################################################
   # Write csv train and test data ####
 
-  train_dfs <-
-    lapply(1:length(m3_train),
-           tt_to_csv,
-           m3_train,
-           m3_type)
-  names(train_dfs) <- 1:length(train_dfs)
-  df <- do.call(rbind, train_dfs)
-  write.csv(df, paste0(dirname, "train_data.csv"), row.names=FALSE)
-
-  test_dfs <-
+  dfs <-
     lapply(1:length(m3_test),
            tt_to_csv,
            m3_test,
-           m3_type)
-
-  # Drop all but the last horizon number of rows which contain the out-of-sample test data
-  test_dfs_xx <-
-    lapply(1:length(test_dfs), function(x) return(tail(test_dfs[[x]], m3_horiz[[x]])))
-  df <-  do.call(rbind, test_dfs_xx)
-  write.csv(df, paste0(dirname, "test_data.csv"), row.names=FALSE)
+           m3_type,
+           m3_horiz)
+  df <-  do.call(rbind, dfs)
+  write.csv(df, paste0("windowed_data.csv"), row.names=FALSE)
 
   return(length(m3_train))
 }
@@ -191,9 +185,9 @@ process_period <- function(period, m3_data, final_mode) {
 window_size <-24
 
 # In validation mode we split the training data into training and validation data sets
-validation_mode <- TRUE
+validation_mode <- FALSE
 
-# !!!! DOES NOT SUPPORT HOURLY AS get_date() RETURNS DATE STRING, NOT "yyyy-mm-dd HH:MM:SS" !!!!
+print("!!!! DOES NOT SUPPORT HOURLY AS get_date() RETURNS DATE STRING, NOT 'yyyy-mm-dd HH:MM:SS' !!!!")
 # periods <- as.vector(levels(m3_data[[1]]$period))
 periods <- c("monthly")
 res <- unlist(lapply(periods, process_period, m3_data, final_mode))
