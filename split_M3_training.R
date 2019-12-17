@@ -170,7 +170,7 @@ process_period <- function(period, m3_data, final_mode) {
            m3_type)
   names(train_dfs) <- 1:length(train_dfs)
   df <- do.call(rbind, train_dfs)
-  write.csv(df, "train_data.csv", row.names=FALSE)
+  write.csv(df, paste0(dirname, "train_data.csv"), row.names=FALSE)
 
   test_dfs <-
     lapply(1:length(m3_test),
@@ -182,21 +182,18 @@ process_period <- function(period, m3_data, final_mode) {
   test_dfs_xx <-
     lapply(1:length(test_dfs), function(x) return(tail(test_dfs[[x]], m3_horiz[[x]])))
   df <-  do.call(rbind, test_dfs_xx)
-  write.csv(df, "test_data.csv", row.names=FALSE)
+  write.csv(df, paste0(dirname, "test_data.csv"), row.names=FALSE)
 
   return(length(m3_train))
 }
 
-# Size of in-sample window for generatign csv data
-
+# Size of in-sample window for generating csv data
 window_size <-24
-freq <- 12
 
 # In validation mode we split the training data into training and validation data sets
-
 validation_mode <- TRUE
 
-# !!!! DOES NOT SUPPORT HOURLY AS GET DATE RETURNS DATE, NOT "yyyy-mm-dd HH:MM:SS" !!!!
+# !!!! DOES NOT SUPPORT HOURLY AS get_date() RETURNS DATE STRING, NOT "yyyy-mm-dd HH:MM:SS" !!!!
 # periods <- as.vector(levels(m3_data[[1]]$period))
 periods <- c("monthly")
 res <- unlist(lapply(periods, process_period, m3_data, final_mode))
