@@ -6,6 +6,7 @@ library(jsonlite)
 # library(forecast)
 # library(zoo)
 library(tidyverse)
+# library(tsibble)
 
 set.seed(42)
 options(warn = 0)
@@ -33,15 +34,15 @@ if (is.na(prop_tt)) {
   m3_data <- sample(M3, prop_tt * length(M3))
 }
 
-get_start <- function(tt) {
-  iso_date <- date_decimal(as.numeric(time(tt)[1]))
-  return (substring(iso_date, 1, 19))
+get_date <- function(tt, offset) {
+  iso_date <- date_decimal(as.numeric(time(tt)[offset]))
+  return (substring(iso_date, 1, 10))
 }
 
 tt_to_json <- function(idx, tt_list, type_list) {
   json <- (paste0(toJSON(
     list(
-      start = get_start(tt_list[[idx]]),
+      start = get_date(tt_list[[idx]], 1),
       target = tt_list[[idx]],
       feat_static_cat = c(idx, as.numeric(type_list[[idx]]))
       # feat_dynamic_real = matrix(rexp(10 * length(tt_list[[idx]])), ncol =
@@ -50,6 +51,23 @@ tt_to_json <- function(idx, tt_list, type_list) {
     auto_unbox = TRUE
   ), "\n"))
   return(json)
+}
+
+tt_to_csv <- function(idx, tt_list, type_list) {
+  rows <- list()
+  for (x in 1:(length(tt_list[[idx]])-window_size)) {
+    rows[[x]] <- c(get_date(tt_list[[idx]], x),
+                   idx,
+                   as.numeric(type_list[[idx]]),
+                   tt_list[[idx]][x:(x+window_size)])
+  }
+  df <- as.data.frame(t(as.data.frame(rows)))
+  rownames(df) <- c() #rep(idx, nrow(df))
+  colnames(df) <-
+    c("START_DATE", "IDX", "TYPE", paste0("X", 1:window_size), "Y")
+  # if (idx > 198)
+  #   browser()
+  return(df)
 }
 
 process_period <- function(period, m3_data, final_mode) {
@@ -89,24 +107,12 @@ process_period <- function(period, m3_data, final_mode) {
   ###########################################################################
   # Create tt depending on final_mode ####
 
-  if (final_mode) {
-    dirname <-
-      paste0("m3_",
-             tolower(period),
-             '_all/')
-    m3_train <-
-      lapply(m3_period_data, function(tt)
-        return(tt$x))
-
-    # train + test
-    m3_test <-
-      lapply(m3_period_data, function(tt)
-        return(ts(data = c(tt$x, tt$xx), start = start(tt$x), frequency = frequency(tt$x))))
-  } else {
+  if (validation_mode) {
     dirname <-
       paste0("m3_",
              tolower(period),
              '/')
+    # train - h
     m3_train <-
       lapply(m3_period_data, function(tt)
         return(subset(tt$x, end = (
@@ -117,33 +123,80 @@ process_period <- function(period, m3_data, final_mode) {
     m3_test <-
       lapply(m3_period_data, function(tt)
         return(tt$x))
+  } else {
+    dirname <-
+      paste0("m3_",
+             tolower(period),
+             '_all/')
+    # train
+    m3_train <-
+      lapply(m3_period_data, function(tt)
+        return(tt$x))
+
+    # train + test
+    m3_test <-
+      lapply(m3_period_data, function(tt)
+        return(ts(data = c(tt$x, tt$xx), start = start(tt$x), frequency = frequency(tt$x))))
   }
 
-  ###########################################################################
-  # Write JSON train and test data ####
+  # ###########################################################################
+  # # Write JSON train and test data ####
+  #
+  # json <-
+  #   lapply(1:length(m3_train),
+  #          tt_to_json,
+  #          m3_train,
+  #          m3_type)
+  # sink(paste0(dirname, "train/data.json"))
+  # lapply(json, cat)
+  # sink()
+  #
+  # json <-
+  #   lapply(1:length(m3_test),
+  #          tt_to_json,
+  #          m3_test,
+  #          m3_type)
+  # sink(paste0(dirname, "test/data.json"))
+  # lapply(json, cat)
+  # sink()
 
-  json <-
+  ###########################################################################
+  # Write csv train and test data ####
+
+  train_dfs <-
     lapply(1:length(m3_train),
-           tt_to_json,
+           tt_to_csv,
            m3_train,
            m3_type)
-  sink(paste0(dirname, "train/data.json"))
-  lapply(json, cat)
-  sink()
+  names(train_dfs) <- 1:length(train_dfs)
+  df <- do.call(rbind, train_dfs)
+  write.csv(df, "train_data.csv", row.names=FALSE)
 
-  json <-
+  test_dfs <-
     lapply(1:length(m3_test),
-           tt_to_json,
+           tt_to_csv,
            m3_test,
            m3_type)
-  sink(paste0(dirname, "test/data.json"))
-  lapply(json, cat)
-  sink()
+
+  # Drop all but the last horizon number of rows which contain the out-of-sample test data
+  test_dfs_xx <-
+    lapply(1:length(test_dfs), function(x) return(tail(test_dfs[[x]], m3_horiz[[x]])))
+  df <-  do.call(rbind, test_dfs_xx)
+  write.csv(df, "test_data.csv", row.names=FALSE)
 
   return(length(m3_train))
 }
 
-final_mode <- FALSE
+# Size of in-sample window for generatign csv data
+
+window_size <-24
+freq <- 12
+
+# In validation mode we split the training data into training and validation data sets
+
+validation_mode <- TRUE
+
+# !!!! DOES NOT SUPPORT HOURLY AS GET DATE RETURNS DATE, NOT "yyyy-mm-dd HH:MM:SS" !!!!
 # periods <- as.vector(levels(m3_data[[1]]$period))
 periods <- c("monthly")
 res <- unlist(lapply(periods, process_period, m3_data, final_mode))
