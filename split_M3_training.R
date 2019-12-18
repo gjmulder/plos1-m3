@@ -1,5 +1,5 @@
 library(Mcomp)
-library(parallel)
+# library(parallel)
 library(lubridate)
 # library(anytime)
 library(jsonlite)
@@ -16,14 +16,14 @@ options(width = 1024)
 # Config ####
 
 if (interactive()) {
-  prop_tt <- 0.1
-  num3_cores <- 4
+  prop_tt <- NA
+  # num3_cores <- 4
 } else
 {
   prop_tt <- NA
-  num3_cores <- 16
+  # num3_cores <- 16
 }
-use_parallel <- TRUE #is.na(prop_tt)
+# use_parallel <- TRUE #is.na(prop_tt)
 
 ###########################################################################
 # Preprocess M data ####
@@ -64,7 +64,7 @@ tt_to_csv <- function(idx, tt_list, type_list, horiz_list) {
   df <- as.data.frame(t(as.data.frame(rows)))
   rownames(df) <- c() #rep(idx, nrow(df))
   colnames(df) <-
-    c("START_DATE", "IDX", "TYPE", paste0("X", 1:window_size), "Y")
+    c("START_DATE", "IDX", "TYPE", paste0("X", window_size:1), "Y")
 
   # Denote validate and test rows as the last two prediction horizons, repsectively
   df["DATA_SPLIT"] <- c(rep("TRAIN", nrow(df)-2*horiz_list[[idx]]),

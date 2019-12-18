@@ -63,7 +63,7 @@ gg_train_mase_per_model <-
               method = 'lm') +
   geom_point(size = 0.5) +
   stat_regline_equation(
-    aes(label = paste(..eq.label.., ..adj.rr.label.., sep = "~~~~")),
+    aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~~")),
     # label.x = max(mongo_plot_data$search.time)/2,
     label.y = min_err,
     colour = "red",
