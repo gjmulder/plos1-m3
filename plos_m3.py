@@ -352,7 +352,8 @@ def forecast(cfg):
             
         estimator = GaussianProcessEstimator(
             freq=freq_pd,
-            prediction_length=prediction_length, 
+            prediction_length=prediction_length,
+            cardinality=len(train_data['train'],
             max_iter_jitter=cfg['model']['max_iter_jitter'],
             sample_noise=cfg['model']['sample_noise'],
             num_parallel_samples=1,
