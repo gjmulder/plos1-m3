@@ -8,7 +8,7 @@ mongo_data <-
   mutate(run.num = row_number())
 
 min_err <- min(mongo_data$train.MASE) * 5 / 6
-max_err <- min(mongo_data$train.MASE) * 18 / 6
+max_err <- min(max(mongo_data$train.MASE), min(mongo_data$train.MASE) * 18 / 6)
 
 model_counts <-
   mongo_data %>%
