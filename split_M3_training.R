@@ -176,13 +176,13 @@ process_period <- function(period, m3_data, final_mode) {
            m3_type,
            m3_horiz)
   df <-  do.call(rbind, dfs)
-  write.csv(df, paste0("windowed_data.csv"), row.names=FALSE)
+  write.csv(df, paste0("windowed37_data.csv"), row.names=FALSE)
 
   return(length(m3_train))
 }
 
 # Size of in-sample window for generating csv data
-window_size <-24
+window_size <-37
 
 # In validation mode we split the training data into training and validation data sets
 validation_mode <- FALSE
