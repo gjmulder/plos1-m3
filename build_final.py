@@ -26,28 +26,42 @@ mx.random.seed(rand_seed, ctx='all')
 np.random.seed(rand_seed)
     
 if __name__ == "__main__":
-    #"loss" : 1.0307178497314453,
-    #"status" : "ok",
-    cfg = {
-            "box_cox" : False,
-            "tcrit" : -1.0, #1.645,
-            "model" : {
-                "dar_dropout_rate" : 0.11408673454965677,
-                "num_cells" : 512,
-                "num_layers" : 3,
-                "type" : "DeepAREstimator"
-        },
-        "trainer" : {
-            "batch_size" : 200,
-            "learning_rate" : 0.0009585442459283113,
-            "learning_rate_decay_factor" : 0.6412444747653523,
-            "max_epochs" : 1000,
-            "minimum_learning_rate" : 0.000001857482099265628,
-            "num_batches_per_epoch" : 80,
-            "patience" : 80,
-            "weight_decay" : 8.213239578665893e-8
-        }
-    }
+	"result" : {
+		"loss" : 7.0423109573112805,
+		"status" : "ok",
+		"cfg" : {
+			"box_cox" : true,
+			"model" : {
+				"dar_dropout_rate" : 0.09400281426733578,
+				"num_cells" : 288,
+				"num_layers" : 10,
+				"type" : "DeepAREstimator"
+			},
+			"tcrit" : -1,
+			"trainer" : {
+				"batch_size" : 288,
+				"learning_rate" : 0.0005057298188293406,
+				"learning_rate_decay_factor" : 0.26508738312094304,
+				"max_epochs" : 144,
+				"minimum_learning_rate" : 0.000017170580611915995,
+				"num_batches_per_epoch" : 1280,
+				"patience" : 24,
+				"weight_decay" : 6.9587678330069426e-9
+			}
+		}
+		"err_metrics" : {
+			"train" : {
+				"mase" : 0.4999524652957916,
+				"smape" : 7.0423109573112805
+			},
+			"test" : {
+				"mase" : 0.6042534112930298,
+				"smape" : 8.242183214418231
+			}
+		},
+		"build_url" : "http://10.10.70.18:8080/job/gpu_asushimu/INSTANCE=0,label=asushimu/91/"
+	},
+
             
     results = gluonts_fcast(cfg)
     logger.info("Final results:\n%s" % pformat(results, indent=4, width=160))
