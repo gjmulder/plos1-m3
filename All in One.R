@@ -655,7 +655,7 @@ DecomposeC = function(insample,frequency){
 # write.csv(MASE18, file=paste("Results MLP Best multi-step MASE.csv"),row.names=FALSE)
 # write.csv(Results, file=paste("Results MLP Best multi-step.csv"),row.names=FALSE)
 
-
+print(paste0("ETS Started at ", date()))
 
 CreateSamples<-function(datasample,xi){
 
@@ -752,9 +752,9 @@ for (tsi in 1:1428){
 
 what<-c(what,as.numeric(Sys.time()-startt,units="secs")/1045)
 write.csv(Results, file=paste("Results ETS.csv"),row.names=FALSE)
+print(paste0("ETS Finished at ", date()))
 
-
-
+print(paste0("ETS BC Started at ", date()))
 CreateSamples<-function(datasample,xi){
 
   #Normalize insample from 0 to 1
@@ -855,7 +855,7 @@ for (tsi in 1:1428){
 what<-c(what,as.numeric(Sys.time()-startt,units="secs")/1045)
 write.csv(Results, file=paste("Results ETS BC.csv"),row.names=FALSE)
 
-
+print(paste0("ETS BC Finished at ", date()))
 
 # CreateSamples<-function(datasample,xi){
 #
@@ -1401,7 +1401,7 @@ write.csv(Results, file=paste("Results ETS BC.csv"),row.names=FALSE)
 # what<-c(what,as.numeric(Sys.time()-startt,units="secs")/1045)
 # write.csv(Results, file=paste("Results holt BC.csv"),row.names=FALSE)
 
-
+print(paste0("Naive Started at ", date()))
 
 CreateSamples<-function(datasample,xi){
 
@@ -1492,6 +1492,7 @@ for (tsi in 1:1428){
 what<-c(what,as.numeric(Sys.time()-startt,units="secs")/1045)
 write.csv(Results, file=paste("Results naive.csv"),row.names=FALSE)
 
+print(paste0("Naive Finished at ", date()))
 
 # CreateSamples<-function(datasample,xi){
 #
@@ -3248,6 +3249,7 @@ write.csv(Results, file=paste("Results naive.csv"),row.names=FALSE)
 # write.csv(Results, file=paste("Results MLP.csv"),row.names=FALSE)
 #
 
+print(paste0("MLP Started at ", date()))
 
 CreateSamples<-function(datasample,xi){
 
@@ -3408,7 +3410,7 @@ for (tsi in 1:1428){
 what<-c(what,as.numeric(Sys.time()-startt,units="secs")/1045)
 write.csv(Results, file=paste("Results MLP BCandDes.csv"),row.names=FALSE)
 
-
+print(paste0("MLP Finished at ", date()))
 
 #
 # CreateSamples<-function(datasample,xi){
