@@ -655,207 +655,207 @@ DecomposeC = function(insample,frequency){
 # write.csv(MASE18, file=paste("Results MLP Best multi-step MASE.csv"),row.names=FALSE)
 # write.csv(Results, file=paste("Results MLP Best multi-step.csv"),row.names=FALSE)
 
-print(paste0("ETS Started at ", date()))
-
-CreateSamples<-function(datasample,xi){
-
-  #Normalize insample from 0 to 1
-  xo<-1
-  ####  ####  ####  ####  ####  Create data set ####  ####  ####  #### ####  ####  ####  ####
-  sample<-matrix(NA,nrow=length(datasample),ncol=(xi+xo)) #all possible n-samples
-  for (cid in (xi+xo):length(datasample)){
-    sample[cid,]<-datasample[(cid-xi-xo+1):cid]
-  }
-  sample<-as.matrix(data.frame(na.omit(sample)))
-
-  return(sample)
-}
-
-frequency = 12; descr = "M3-Monthly"; data = subset(M3, frequency)
-startt<-Sys.time()
-#Tables for sMAPE and MASE TOTAL
-Results<-data.frame(matrix(NA,ncol=4,nrow=1428))
-colnames(Results)<-c("sMAPE","MASE","Time","Gof")
-
-
-
-for (tsi in 1:1428){
-
-  insample<-data[[tsi]]$x
-  outsample<-data[[tsi]]$xx
-  observations<-length(insample)
-
-  if (observations>80){
-
-    ttotrain<-Sys.time()
-
-    #Tables for sMAPE and MASE rolling
-    RollingResults<-data.frame(matrix(NA,ncol=2,nrow=18))
-    colnames(RollingResults)<-c("sMAPE","MASE")
-    tsmulti<-c(insample,outsample)
-
-    for (i in 1:18){
-
-      #Sample for rolling
-      tempin<-ts(tsmulti[1:(observations-1+i)],frequency = 12)
-      tempout<-outsample[i]
-
-      if (i==1){
-        modeltype<-substring(gsub(",","", ets(tempin)$method),5)
-        modeltype<-substr(modeltype,1,nchar(modeltype)-1)
-        Damped<-FALSE
-        if (nchar(modeltype)>3){
-          Damped<-TRUE
-          modeltype<-gsub("d","", modeltype)
-        }
-      }
-
-      #forecast using t-s methods
-      model<-forecast(ets(tempin,model=modeltype,damped=Damped),h=1)
-      modelf<-model$mean
-
-      if (i==1){
-        GoF<-mean((model$fitted-as.numeric(insample))^2)*100/(mean(insample)^2)
-      }
-
-      forecasts<-data.frame(modelf)
-
-      #Make negative forecasts equal to zero
-      for (k in 1:ncol(forecasts)){
-        if(forecasts[1,k]<0) { forecasts[1,k]<-0 }
-      }
-
-      #Benchmark for MASE
-      maseinsample<-head(c(insample,outsample),observations+i-1)
-      forecastsNaiveSD<-rep(NA,frequency)
-      for (j in (frequency+1):length(maseinsample)){
-        forecastsNaiveSD<-c(forecastsNaiveSD,maseinsample[j-frequency])
-      }
-      masep<-mean(abs(maseinsample-forecastsNaiveSD),na.rm = TRUE)
-
-      #Estimate errors sMAPE and MASE
-      RollingResults$sMAPE[i]<-mean(200*abs(forecasts[1,k]-tempout)/(forecasts[1,k]+tempout))
-      RollingResults$MASE[i]<-mean(abs(forecasts[1,k]-tempout))/masep
-
-
-    }
-
-    #Save errors
-    Results$Time[tsi]<-c(Sys.time()-ttotrain)
-    Results$sMAPE[tsi]<-mean(RollingResults$sMAPE)
-    Results$MASE[tsi]<-mean(RollingResults$MASE)
-    Results$Gof[tsi]<-GoF
-
-  }
-
-}
-
-what<-c(what,as.numeric(Sys.time()-startt,units="secs")/1045)
-write.csv(Results, file=paste("Results ETS.csv"),row.names=FALSE)
-print(paste0("ETS Finished at ", date()))
-
-print(paste0("ETS BC Started at ", date()))
-CreateSamples<-function(datasample,xi){
-
-  #Normalize insample from 0 to 1
-  xo<-1
-  ####  ####  ####  ####  ####  Create data set ####  ####  ####  #### ####  ####  ####  ####
-  sample<-matrix(NA,nrow=length(datasample),ncol=(xi+xo)) #all possible n-samples
-  for (cid in (xi+xo):length(datasample)){
-    sample[cid,]<-datasample[(cid-xi-xo+1):cid]
-  }
-  sample<-as.matrix(data.frame(na.omit(sample)))
-
-  return(sample)
-}
-
-frequency = 12; descr = "M3-Monthly"; data = subset(M3, frequency)
-
-#Tables for sMAPE and MASE TOTAL
-Results<-data.frame(matrix(NA,ncol=4,nrow=1428))
-colnames(Results)<-c("sMAPE","MASE","Time","Gof")
-
-startt<-Sys.time()
-
-for (tsi in 1:1428){
-
-  insample<-data[[tsi]]$x
-  outsample<-data[[tsi]]$xx
-  observations<-length(insample)
-
-  if (observations>80){
-
-    ttotrain<-Sys.time()
-
-    lambda=BoxCox.lambda(insample,method="loglik",lower=0, upper=1)
-    tsmulti=BoxCox(insample,lambda=lambda)
-    tsmulti<-c(BoxCox(insample,lambda=lambda),BoxCox(outsample,lambda=lambda))
-
-
-    #Tables for sMAPE and MASE rolling
-    RollingResults<-data.frame(matrix(NA,ncol=2,nrow=18))
-    colnames(RollingResults)<-c("sMAPE","MASE")
-
-
-    for (i in 1:18){
-
-      #Sample for rolling
-      tempin<-ts(tsmulti[1:(observations-1+i)],frequency = 12)
-      tempout<-outsample[i]
-
-      if (i==1){
-        modeltype<-substring(gsub(",","", ets(tempin)$method),5)
-        modeltype<-substr(modeltype,1,nchar(modeltype)-1)
-        Damped<-FALSE
-        if (nchar(modeltype)>3){
-          Damped<-TRUE
-          modeltype<-gsub("d","", modeltype)
-        }
-      }
-
-      #forecast using t-s methods
-      model<-forecast(ets(tempin,model=modeltype,damped=Damped),h=1)
-      modelf<-InvBoxCox(model$mean,lambda=lambda)
-
-      if (i==1){
-        GoF<-mean((InvBoxCox(model$fitted,lambda=lambda)-as.numeric(insample))^2)*100/(mean(insample)^2)
-      }
-
-      forecasts<-data.frame(modelf)
-
-      #Make negative forecasts equal to zero
-      for (k in 1:ncol(forecasts)){
-        if(forecasts[1,k]<0) { forecasts[1,k]<-0 }
-      }
-
-      #Benchmark for MASE
-      maseinsample<-head(c(insample,outsample),observations+i-1)
-      forecastsNaiveSD<-rep(NA,frequency)
-      for (j in (frequency+1):length(maseinsample)){
-        forecastsNaiveSD<-c(forecastsNaiveSD,maseinsample[j-frequency])
-      }
-      masep<-mean(abs(maseinsample-forecastsNaiveSD),na.rm = TRUE)
-
-      #Estimate errors sMAPE and MASE
-      RollingResults$sMAPE[i]<-mean(200*abs(forecasts[1,k]-tempout)/(forecasts[1,k]+tempout))
-      RollingResults$MASE[i]<-mean(abs(forecasts[1,k]-tempout))/masep
-
-
-    }
-
-    #Save errors
-    Results$Time[tsi]<-c(Sys.time()-ttotrain)
-    Results$sMAPE[tsi]<-mean(RollingResults$sMAPE)
-    Results$MASE[tsi]<-mean(RollingResults$MASE)
-    Results$Gof[tsi]<-GoF
-
-  }
-
-}
-what<-c(what,as.numeric(Sys.time()-startt,units="secs")/1045)
-write.csv(Results, file=paste("Results ETS BC.csv"),row.names=FALSE)
-
-print(paste0("ETS BC Finished at ", date()))
+# print(paste0("ETS Started at ", date()))
+#
+# CreateSamples<-function(datasample,xi){
+#
+#   #Normalize insample from 0 to 1
+#   xo<-1
+#   ####  ####  ####  ####  ####  Create data set ####  ####  ####  #### ####  ####  ####  ####
+#   sample<-matrix(NA,nrow=length(datasample),ncol=(xi+xo)) #all possible n-samples
+#   for (cid in (xi+xo):length(datasample)){
+#     sample[cid,]<-datasample[(cid-xi-xo+1):cid]
+#   }
+#   sample<-as.matrix(data.frame(na.omit(sample)))
+#
+#   return(sample)
+# }
+#
+# frequency = 12; descr = "M3-Monthly"; data = subset(M3, frequency)
+# startt<-Sys.time()
+# #Tables for sMAPE and MASE TOTAL
+# Results<-data.frame(matrix(NA,ncol=4,nrow=1428))
+# colnames(Results)<-c("sMAPE","MASE","Time","Gof")
+#
+#
+#
+# for (tsi in 1:1428){
+#
+#   insample<-data[[tsi]]$x
+#   outsample<-data[[tsi]]$xx
+#   observations<-length(insample)
+#
+#   if (observations>80){
+#
+#     ttotrain<-Sys.time()
+#
+#     #Tables for sMAPE and MASE rolling
+#     RollingResults<-data.frame(matrix(NA,ncol=2,nrow=18))
+#     colnames(RollingResults)<-c("sMAPE","MASE")
+#     tsmulti<-c(insample,outsample)
+#
+#     for (i in 1:18){
+#
+#       #Sample for rolling
+#       tempin<-ts(tsmulti[1:(observations-1+i)],frequency = 12)
+#       tempout<-outsample[i]
+#
+#       if (i==1){
+#         modeltype<-substring(gsub(",","", ets(tempin)$method),5)
+#         modeltype<-substr(modeltype,1,nchar(modeltype)-1)
+#         Damped<-FALSE
+#         if (nchar(modeltype)>3){
+#           Damped<-TRUE
+#           modeltype<-gsub("d","", modeltype)
+#         }
+#       }
+#
+#       #forecast using t-s methods
+#       model<-forecast(ets(tempin,model=modeltype,damped=Damped),h=1)
+#       modelf<-model$mean
+#
+#       if (i==1){
+#         GoF<-mean((model$fitted-as.numeric(insample))^2)*100/(mean(insample)^2)
+#       }
+#
+#       forecasts<-data.frame(modelf)
+#
+#       #Make negative forecasts equal to zero
+#       for (k in 1:ncol(forecasts)){
+#         if(forecasts[1,k]<0) { forecasts[1,k]<-0 }
+#       }
+#
+#       #Benchmark for MASE
+#       maseinsample<-head(c(insample,outsample),observations+i-1)
+#       forecastsNaiveSD<-rep(NA,frequency)
+#       for (j in (frequency+1):length(maseinsample)){
+#         forecastsNaiveSD<-c(forecastsNaiveSD,maseinsample[j-frequency])
+#       }
+#       masep<-mean(abs(maseinsample-forecastsNaiveSD),na.rm = TRUE)
+#
+#       #Estimate errors sMAPE and MASE
+#       RollingResults$sMAPE[i]<-mean(200*abs(forecasts[1,k]-tempout)/(forecasts[1,k]+tempout))
+#       RollingResults$MASE[i]<-mean(abs(forecasts[1,k]-tempout))/masep
+#
+#
+#     }
+#
+#     #Save errors
+#     Results$Time[tsi]<-c(Sys.time()-ttotrain)
+#     Results$sMAPE[tsi]<-mean(RollingResults$sMAPE)
+#     Results$MASE[tsi]<-mean(RollingResults$MASE)
+#     Results$Gof[tsi]<-GoF
+#
+#   }
+#
+# }
+#
+# what<-c(what,as.numeric(Sys.time()-startt,units="secs")/1045)
+# write.csv(Results, file=paste("Results ETS.csv"),row.names=FALSE)
+# print(paste0("ETS Finished at ", date()))
+#
+# print(paste0("ETS BC Started at ", date()))
+# CreateSamples<-function(datasample,xi){
+#
+#   #Normalize insample from 0 to 1
+#   xo<-1
+#   ####  ####  ####  ####  ####  Create data set ####  ####  ####  #### ####  ####  ####  ####
+#   sample<-matrix(NA,nrow=length(datasample),ncol=(xi+xo)) #all possible n-samples
+#   for (cid in (xi+xo):length(datasample)){
+#     sample[cid,]<-datasample[(cid-xi-xo+1):cid]
+#   }
+#   sample<-as.matrix(data.frame(na.omit(sample)))
+#
+#   return(sample)
+# }
+#
+# frequency = 12; descr = "M3-Monthly"; data = subset(M3, frequency)
+#
+# #Tables for sMAPE and MASE TOTAL
+# Results<-data.frame(matrix(NA,ncol=4,nrow=1428))
+# colnames(Results)<-c("sMAPE","MASE","Time","Gof")
+#
+# startt<-Sys.time()
+#
+# for (tsi in 1:1428){
+#
+#   insample<-data[[tsi]]$x
+#   outsample<-data[[tsi]]$xx
+#   observations<-length(insample)
+#
+#   if (observations>80){
+#
+#     ttotrain<-Sys.time()
+#
+#     lambda=BoxCox.lambda(insample,method="loglik",lower=0, upper=1)
+#     tsmulti=BoxCox(insample,lambda=lambda)
+#     tsmulti<-c(BoxCox(insample,lambda=lambda),BoxCox(outsample,lambda=lambda))
+#
+#
+#     #Tables for sMAPE and MASE rolling
+#     RollingResults<-data.frame(matrix(NA,ncol=2,nrow=18))
+#     colnames(RollingResults)<-c("sMAPE","MASE")
+#
+#
+#     for (i in 1:18){
+#
+#       #Sample for rolling
+#       tempin<-ts(tsmulti[1:(observations-1+i)],frequency = 12)
+#       tempout<-outsample[i]
+#
+#       if (i==1){
+#         modeltype<-substring(gsub(",","", ets(tempin)$method),5)
+#         modeltype<-substr(modeltype,1,nchar(modeltype)-1)
+#         Damped<-FALSE
+#         if (nchar(modeltype)>3){
+#           Damped<-TRUE
+#           modeltype<-gsub("d","", modeltype)
+#         }
+#       }
+#
+#       #forecast using t-s methods
+#       model<-forecast(ets(tempin,model=modeltype,damped=Damped),h=1)
+#       modelf<-InvBoxCox(model$mean,lambda=lambda)
+#
+#       if (i==1){
+#         GoF<-mean((InvBoxCox(model$fitted,lambda=lambda)-as.numeric(insample))^2)*100/(mean(insample)^2)
+#       }
+#
+#       forecasts<-data.frame(modelf)
+#
+#       #Make negative forecasts equal to zero
+#       for (k in 1:ncol(forecasts)){
+#         if(forecasts[1,k]<0) { forecasts[1,k]<-0 }
+#       }
+#
+#       #Benchmark for MASE
+#       maseinsample<-head(c(insample,outsample),observations+i-1)
+#       forecastsNaiveSD<-rep(NA,frequency)
+#       for (j in (frequency+1):length(maseinsample)){
+#         forecastsNaiveSD<-c(forecastsNaiveSD,maseinsample[j-frequency])
+#       }
+#       masep<-mean(abs(maseinsample-forecastsNaiveSD),na.rm = TRUE)
+#
+#       #Estimate errors sMAPE and MASE
+#       RollingResults$sMAPE[i]<-mean(200*abs(forecasts[1,k]-tempout)/(forecasts[1,k]+tempout))
+#       RollingResults$MASE[i]<-mean(abs(forecasts[1,k]-tempout))/masep
+#
+#
+#     }
+#
+#     #Save errors
+#     Results$Time[tsi]<-c(Sys.time()-ttotrain)
+#     Results$sMAPE[tsi]<-mean(RollingResults$sMAPE)
+#     Results$MASE[tsi]<-mean(RollingResults$MASE)
+#     Results$Gof[tsi]<-GoF
+#
+#   }
+#
+# }
+# what<-c(what,as.numeric(Sys.time()-startt,units="secs")/1045)
+# write.csv(Results, file=paste("Results ETS BC.csv"),row.names=FALSE)
+#
+# print(paste0("ETS BC Finished at ", date()))
 
 # CreateSamples<-function(datasample,xi){
 #
@@ -1401,98 +1401,98 @@ print(paste0("ETS BC Finished at ", date()))
 # what<-c(what,as.numeric(Sys.time()-startt,units="secs")/1045)
 # write.csv(Results, file=paste("Results holt BC.csv"),row.names=FALSE)
 
-print(paste0("Naive Started at ", date()))
-
-CreateSamples<-function(datasample,xi){
-
-  #Normalize insample from 0 to 1
-  xo<-1
-  ####  ####  ####  ####  ####  Create data set ####  ####  ####  #### ####  ####  ####  ####
-  sample<-matrix(NA,nrow=length(datasample),ncol=(xi+xo)) #all possible n-samples
-  for (cid in (xi+xo):length(datasample)){
-    sample[cid,]<-datasample[(cid-xi-xo+1):cid]
-  }
-  sample<-as.matrix(data.frame(na.omit(sample)))
-
-  return(sample)
-}
-
-frequency = 12; descr = "M3-Monthly"; data = subset(M3, frequency)
-startt<-Sys.time()
-#Tables for sMAPE and MASE TOTAL
-Results<-data.frame(matrix(NA,ncol=4,nrow=1428))
-colnames(Results)<-c("sMAPE","MASE","Time","Gof")
-
-
-for (tsi in 1:1428){
-
-  insample<-data[[tsi]]$x
-  outsample<-data[[tsi]]$xx
-  observations<-length(insample)
-
-  if (observations>80){
-
-    ttotrain<-Sys.time()
-
-    #Tables for sMAPE and MASE rolling
-    RollingResults<-data.frame(matrix(NA,ncol=2,nrow=18))
-    colnames(RollingResults)<-c("sMAPE","MASE")
-
-    DecModel<-SeasonalDec(insample=insample,horizon=18,frequency=12)
-    Decinsample<-DecModel[[1]]
-    Decoutsample<-DecModel[[2]]
-
-    tsmulti<-c(insample/Decinsample,outsample/Decoutsample)
-
-    for (i in 1:18){
-
-      #Sample for rolling
-      tempin<-ts(tsmulti[1:(observations-1+i)],frequency = 12)
-      tempout<-outsample[i]
-
-      #forecast using t-s methods
-      model<-naive(tempin,h=1)
-      modelf<-model$mean*Decoutsample[i]
-
-      if (i==1){
-        GoF<-mean((model$fitted*Decinsample-as.numeric(insample))^2,na.rm = TRUE)*100/(mean(insample)^2)
-      }
-
-      forecasts<-data.frame(modelf)
-
-      #Make negative forecasts equal to zero
-      for (k in 1:ncol(forecasts)){
-        if(forecasts[1,k]<0) { forecasts[1,k]<-0 }
-      }
-
-      #Benchmark for MASE
-      maseinsample<-head(c(insample,outsample),observations+i-1)
-      forecastsNaiveSD<-rep(NA,frequency)
-      for (j in (frequency+1):length(maseinsample)){
-        forecastsNaiveSD<-c(forecastsNaiveSD,maseinsample[j-frequency])
-      }
-      masep<-mean(abs(maseinsample-forecastsNaiveSD),na.rm = TRUE)
-
-      #Estimate errors sMAPE and MASE
-      RollingResults$sMAPE[i]<-mean(200*abs(forecasts[1,k]-tempout)/(forecasts[1,k]+tempout))
-      RollingResults$MASE[i]<-mean(abs(forecasts[1,k]-tempout))/masep
-
-
-    }
-
-    #Save errors
-    Results$Time[tsi]<-c(Sys.time()-ttotrain)
-    Results$sMAPE[tsi]<-mean(RollingResults$sMAPE)
-    Results$MASE[tsi]<-mean(RollingResults$MASE)
-    Results$Gof[tsi]<-GoF
-
-  }
-
-}
-what<-c(what,as.numeric(Sys.time()-startt,units="secs")/1045)
-write.csv(Results, file=paste("Results naive.csv"),row.names=FALSE)
-
-print(paste0("Naive Finished at ", date()))
+# print(paste0("Naive Started at ", date()))
+#
+# CreateSamples<-function(datasample,xi){
+#
+#   #Normalize insample from 0 to 1
+#   xo<-1
+#   ####  ####  ####  ####  ####  Create data set ####  ####  ####  #### ####  ####  ####  ####
+#   sample<-matrix(NA,nrow=length(datasample),ncol=(xi+xo)) #all possible n-samples
+#   for (cid in (xi+xo):length(datasample)){
+#     sample[cid,]<-datasample[(cid-xi-xo+1):cid]
+#   }
+#   sample<-as.matrix(data.frame(na.omit(sample)))
+#
+#   return(sample)
+# }
+#
+# frequency = 12; descr = "M3-Monthly"; data = subset(M3, frequency)
+# startt<-Sys.time()
+# #Tables for sMAPE and MASE TOTAL
+# Results<-data.frame(matrix(NA,ncol=4,nrow=1428))
+# colnames(Results)<-c("sMAPE","MASE","Time","Gof")
+#
+#
+# for (tsi in 1:1428){
+#
+#   insample<-data[[tsi]]$x
+#   outsample<-data[[tsi]]$xx
+#   observations<-length(insample)
+#
+#   if (observations>80){
+#
+#     ttotrain<-Sys.time()
+#
+#     #Tables for sMAPE and MASE rolling
+#     RollingResults<-data.frame(matrix(NA,ncol=2,nrow=18))
+#     colnames(RollingResults)<-c("sMAPE","MASE")
+#
+#     DecModel<-SeasonalDec(insample=insample,horizon=18,frequency=12)
+#     Decinsample<-DecModel[[1]]
+#     Decoutsample<-DecModel[[2]]
+#
+#     tsmulti<-c(insample/Decinsample,outsample/Decoutsample)
+#
+#     for (i in 1:18){
+#
+#       #Sample for rolling
+#       tempin<-ts(tsmulti[1:(observations-1+i)],frequency = 12)
+#       tempout<-outsample[i]
+#
+#       #forecast using t-s methods
+#       model<-naive(tempin,h=1)
+#       modelf<-model$mean*Decoutsample[i]
+#
+#       if (i==1){
+#         GoF<-mean((model$fitted*Decinsample-as.numeric(insample))^2,na.rm = TRUE)*100/(mean(insample)^2)
+#       }
+#
+#       forecasts<-data.frame(modelf)
+#
+#       #Make negative forecasts equal to zero
+#       for (k in 1:ncol(forecasts)){
+#         if(forecasts[1,k]<0) { forecasts[1,k]<-0 }
+#       }
+#
+#       #Benchmark for MASE
+#       maseinsample<-head(c(insample,outsample),observations+i-1)
+#       forecastsNaiveSD<-rep(NA,frequency)
+#       for (j in (frequency+1):length(maseinsample)){
+#         forecastsNaiveSD<-c(forecastsNaiveSD,maseinsample[j-frequency])
+#       }
+#       masep<-mean(abs(maseinsample-forecastsNaiveSD),na.rm = TRUE)
+#
+#       #Estimate errors sMAPE and MASE
+#       RollingResults$sMAPE[i]<-mean(200*abs(forecasts[1,k]-tempout)/(forecasts[1,k]+tempout))
+#       RollingResults$MASE[i]<-mean(abs(forecasts[1,k]-tempout))/masep
+#
+#
+#     }
+#
+#     #Save errors
+#     Results$Time[tsi]<-c(Sys.time()-ttotrain)
+#     Results$sMAPE[tsi]<-mean(RollingResults$sMAPE)
+#     Results$MASE[tsi]<-mean(RollingResults$MASE)
+#     Results$Gof[tsi]<-GoF
+#
+#   }
+#
+# }
+# what<-c(what,as.numeric(Sys.time()-startt,units="secs")/1045)
+# write.csv(Results, file=paste("Results naive.csv"),row.names=FALSE)
+#
+# print(paste0("Naive Finished at ", date()))
 
 # CreateSamples<-function(datasample,xi){
 #
@@ -2128,126 +2128,127 @@ print(paste0("Naive Finished at ", date()))
 # }
 # what<-c(what,as.numeric(Sys.time()-startt,units="secs")/1045)
 # write.csv(Results, file=paste("Results theta.csv"),row.names=FALSE)
-#
-#
-# CreateSamples<-function(datasample,xi){
-#
-#   #Normalize insample from 0 to 1
-#   xo<-1
-#   ####  ####  ####  ####  ####  Create data set ####  ####  ####  #### ####  ####  ####  ####
-#   sample<-matrix(NA,nrow=length(datasample),ncol=(xi+xo)) #all possible n-samples
-#   for (cid in (xi+xo):length(datasample)){
-#     sample[cid,]<-datasample[(cid-xi-xo+1):cid]
-#   }
-#   sample<-as.matrix(data.frame(na.omit(sample)))
-#
-#   return(sample)
-# }
-#
-# ThetaG <- function( input, fh){
-#
-#   outtest<-naive(input,h=fh)$mean
-#   wses=wlrl<-1/2 ; theta=2
-#
-#   observations=length(input)
-#   xs = c(1:observations)
-#   xf = xff = c((observations+1):(observations+fh))
-#   dat=data.frame(input=input,xs=xs)
-#   newdf <- data.frame(xs = xff)
-#
-#   estimate <- lm(input ~ poly(xs, par=1, raw=TRUE))
-#   thetaline0In  =predict(estimate)+input-input
-#   thetaline0Out =predict(estimate,newdf)+outtest-outtest
-#
-#   thetaline2In  =ses(theta*input+(1-theta)*thetaline0In,h=fh)$fitted
-#   thetaline2Out =ses(theta*input+(1-theta)*thetaline0In,h=fh)$mean
-#
-#   forecastsIn  = as.numeric(thetaline2In*wses)+as.numeric(thetaline0In*wlrl)+input-input
-#   forecastsOut = as.numeric(thetaline2Out*wses)+as.numeric(thetaline0Out*wlrl)+outtest-outtest
-#
-#   output=list(fitted=forecastsIn,mean=forecastsOut,fitted0=thetaline0In,mean0=thetaline0Out,fitted2=thetaline2In,mean2=thetaline2Out,modelest=estimate)
-#
-#   return(output)
-# }
-#
-# frequency = 12; descr = "M3-Monthly"; data = subset(M3, frequency)
-# startt<-Sys.time()
-# #Tables for sMAPE and MASE TOTAL
-# Results<-data.frame(matrix(NA,ncol=4,nrow=1428))
-# colnames(Results)<-c("sMAPE","MASE","Time","Gof")
-#
-#
-# for (tsi in 1:1428){
-#
-#   insample<-data[[tsi]]$x
-#   outsample<-data[[tsi]]$xx
-#   observations<-length(insample)
-#
-#   if (observations>80){
-#
-#     ttotrain<-Sys.time()
-#
-#     #Tables for sMAPE and MASE rolling
-#     RollingResults<-data.frame(matrix(NA,ncol=2,nrow=18))
-#     colnames(RollingResults)<-c("sMAPE","MASE")
-#
-#     lambda=BoxCox.lambda(insample,method="loglik",lower=0, upper=1)
-#     tsmulti=BoxCox(insample,lambda=lambda)
-#
-#     DecModel<-SeasonalDec(insample=tsmulti,horizon=18,frequency=12)
-#     Decinsample<-DecModel[[1]]
-#     Decoutsample<-DecModel[[2]]
-#
-#     tsmulti<-c(BoxCox(insample,lambda=lambda)/Decinsample,BoxCox(outsample,lambda=lambda)/Decoutsample)
-#
-#     for (i in 1:18){
-#
-#       #Sample for rolling
-#       tempin<-ts(tsmulti[1:(observations-1+i)],frequency = 12)
-#       tempout<-outsample[i]
-#
-#       #forecast using t-s methods
-#       model<-ThetaG( input=tempin, fh=1)
-#       modelf<-InvBoxCox(model$mean*Decoutsample[i],lambda=lambda)
-#
-#       if (i==1){
-#         GoF<-mean((InvBoxCox(model$fitted*Decinsample,lambda=lambda)-as.numeric(insample))^2,na.rm = TRUE)*100/(mean(insample)^2)
-#       }
-#
-#       forecasts<-data.frame(modelf)
-#
-#       #Make negative forecasts equal to zero
-#       for (k in 1:ncol(forecasts)){
-#         if(forecasts[1,k]<0) { forecasts[1,k]<-0 }
-#       }
-#
-#       #Benchmark for MASE
-#       maseinsample<-head(c(insample,outsample),observations+i-1)
-#       forecastsNaiveSD<-rep(NA,frequency)
-#       for (j in (frequency+1):length(maseinsample)){
-#         forecastsNaiveSD<-c(forecastsNaiveSD,maseinsample[j-frequency])
-#       }
-#       masep<-mean(abs(maseinsample-forecastsNaiveSD),na.rm = TRUE)
-#
-#       #Estimate errors sMAPE and MASE
-#       RollingResults$sMAPE[i]<-mean(200*abs(forecasts[1,k]-tempout)/(forecasts[1,k]+tempout))
-#       RollingResults$MASE[i]<-mean(abs(forecasts[1,k]-tempout))/masep
-#
-#
-#     }
-#
-#     #Save errors
-#     Results$Time[tsi]<-c(Sys.time()-ttotrain)
-#     Results$sMAPE[tsi]<-mean(RollingResults$sMAPE)
-#     Results$MASE[tsi]<-mean(RollingResults$MASE)
-#     Results$Gof[tsi]<-GoF
-#
-#   }
-#
-# }
-# what<-c(what,as.numeric(Sys.time()-startt,units="secs")/1045)
-# write.csv(Results, file=paste("Results theta BC.csv"),row.names=FALSE)
-#
+
+print(paste0("theta BC started at", date()))
+CreateSamples<-function(datasample,xi){
+
+  #Normalize insample from 0 to 1
+  xo<-1
+  ####  ####  ####  ####  ####  Create data set ####  ####  ####  #### ####  ####  ####  ####
+  sample<-matrix(NA,nrow=length(datasample),ncol=(xi+xo)) #all possible n-samples
+  for (cid in (xi+xo):length(datasample)){
+    sample[cid,]<-datasample[(cid-xi-xo+1):cid]
+  }
+  sample<-as.matrix(data.frame(na.omit(sample)))
+
+  return(sample)
+}
+
+ThetaG <- function( input, fh){
+
+  outtest<-naive(input,h=fh)$mean
+  wses=wlrl<-1/2 ; theta=2
+
+  observations=length(input)
+  xs = c(1:observations)
+  xf = xff = c((observations+1):(observations+fh))
+  dat=data.frame(input=input,xs=xs)
+  newdf <- data.frame(xs = xff)
+
+  estimate <- lm(input ~ poly(xs, par=1, raw=TRUE))
+  thetaline0In  =predict(estimate)+input-input
+  thetaline0Out =predict(estimate,newdf)+outtest-outtest
+
+  thetaline2In  =ses(theta*input+(1-theta)*thetaline0In,h=fh)$fitted
+  thetaline2Out =ses(theta*input+(1-theta)*thetaline0In,h=fh)$mean
+
+  forecastsIn  = as.numeric(thetaline2In*wses)+as.numeric(thetaline0In*wlrl)+input-input
+  forecastsOut = as.numeric(thetaline2Out*wses)+as.numeric(thetaline0Out*wlrl)+outtest-outtest
+
+  output=list(fitted=forecastsIn,mean=forecastsOut,fitted0=thetaline0In,mean0=thetaline0Out,fitted2=thetaline2In,mean2=thetaline2Out,modelest=estimate)
+
+  return(output)
+}
+
+frequency = 12; descr = "M3-Monthly"; data = subset(M3, frequency)
+startt<-Sys.time()
+#Tables for sMAPE and MASE TOTAL
+Results<-data.frame(matrix(NA,ncol=4,nrow=1428))
+colnames(Results)<-c("sMAPE","MASE","Time","Gof")
+
+
+for (tsi in 1:1428){
+
+  insample<-data[[tsi]]$x
+  outsample<-data[[tsi]]$xx
+  observations<-length(insample)
+
+  if (observations>80){
+
+    ttotrain<-Sys.time()
+
+    #Tables for sMAPE and MASE rolling
+    RollingResults<-data.frame(matrix(NA,ncol=2,nrow=18))
+    colnames(RollingResults)<-c("sMAPE","MASE")
+
+    lambda=BoxCox.lambda(insample,method="loglik",lower=0, upper=1)
+    tsmulti=BoxCox(insample,lambda=lambda)
+
+    DecModel<-SeasonalDec(insample=tsmulti,horizon=18,frequency=12)
+    Decinsample<-DecModel[[1]]
+    Decoutsample<-DecModel[[2]]
+
+    tsmulti<-c(BoxCox(insample,lambda=lambda)/Decinsample,BoxCox(outsample,lambda=lambda)/Decoutsample)
+
+    for (i in 1:18){
+
+      #Sample for rolling
+      tempin<-ts(tsmulti[1:(observations-1+i)],frequency = 12)
+      tempout<-outsample[i]
+
+      #forecast using t-s methods
+      model<-ThetaG( input=tempin, fh=1)
+      modelf<-InvBoxCox(model$mean*Decoutsample[i],lambda=lambda)
+
+      if (i==1){
+        GoF<-mean((InvBoxCox(model$fitted*Decinsample,lambda=lambda)-as.numeric(insample))^2,na.rm = TRUE)*100/(mean(insample)^2)
+      }
+
+      forecasts<-data.frame(modelf)
+
+      #Make negative forecasts equal to zero
+      for (k in 1:ncol(forecasts)){
+        if(forecasts[1,k]<0) { forecasts[1,k]<-0 }
+      }
+
+      #Benchmark for MASE
+      maseinsample<-head(c(insample,outsample),observations+i-1)
+      forecastsNaiveSD<-rep(NA,frequency)
+      for (j in (frequency+1):length(maseinsample)){
+        forecastsNaiveSD<-c(forecastsNaiveSD,maseinsample[j-frequency])
+      }
+      masep<-mean(abs(maseinsample-forecastsNaiveSD),na.rm = TRUE)
+
+      #Estimate errors sMAPE and MASE
+      RollingResults$sMAPE[i]<-mean(200*abs(forecasts[1,k]-tempout)/(forecasts[1,k]+tempout))
+      RollingResults$MASE[i]<-mean(abs(forecasts[1,k]-tempout))/masep
+
+
+    }
+
+    #Save errors
+    Results$Time[tsi]<-c(Sys.time()-ttotrain)
+    Results$sMAPE[tsi]<-mean(RollingResults$sMAPE)
+    Results$MASE[tsi]<-mean(RollingResults$MASE)
+    Results$Gof[tsi]<-GoF
+
+  }
+
+}
+what<-c(what,as.numeric(Sys.time()-startt,units="secs")/1045)
+write.csv(Results, file=paste("Results theta BC.csv"),row.names=FALSE)
+print(paste0("theta BC ended at ", date()))
+
 #
 # CreateSamples<-function(datasample,xi){
 #
@@ -3248,170 +3249,170 @@ print(paste0("Naive Finished at ", date()))
 # what<-c(what,as.numeric(Sys.time()-startt,units="secs")/1045)
 # write.csv(Results, file=paste("Results MLP.csv"),row.names=FALSE)
 #
-
-print(paste0("MLP Started at ", date()))
-
-CreateSamples<-function(datasample,xi){
-
-  #Normalize insample from 0 to 1
-  xo<-1
-  ####  ####  ####  ####  ####  Create data set ####  ####  ####  #### ####  ####  ####  ####
-  sample<-matrix(NA,nrow=length(datasample),ncol=(xi+xo)) #all possible n-samples
-  for (cid in (xi+xo):length(datasample)){
-    sample[cid,]<-datasample[(cid-xi-xo+1):cid]
-  }
-  sample<-as.matrix(data.frame(na.omit(sample)))
-
-  return(sample)
-}
-
-frequency = 12; descr = "M3-Monthly"; data = subset(M3, frequency)
-startt<-Sys.time()
-#Tables for sMAPE and MASE TOTAL
-Results<-data.frame(matrix(NA,ncol=4,nrow=1428))
-colnames(Results)<-c("sMAPE","MASE","Time","GoF")
-
-
-for (tsi in 1:1428){
-
-  insample<-data[[tsi]]$x
-  outsample<-data[[tsi]]$xx
-  observations<-length(insample)
-
-  if (observations>80){
-
-    ttotrain<-Sys.time()
-
-    lamda<-BoxCox.lambda(insample, lower=0, upper=1)
-    tsmulti<-BoxCox(insample,lambda=lamda)
-
-    DecModel<-SeasonalDec(insample=tsmulti,horizon=18,frequency=12)
-    Decinsample<-DecModel[[1]]
-    Decoutsample<-DecModel[[2]]
-
-    tsmulti<-tsmulti/Decinsample
-
-    MAX<-max(tsmulti) ; MIN<-min(tsmulti)
-    tsmulti<-(tsmulti-MIN)/(MAX-MIN)
-
-    #test multiple input nodes and find the optimal using K-fold cross-validation
-    SSEinputnodes<-c()
-
-    for (xi in 1:5){
-
-      #create samples
-      samplegenerate<-CreateSamples(datasample=tsmulti,xi=xi)
-      #create 10 folds
-      foldlength<-floor(nrow(samplegenerate)/10) ; Kfolds<-NULL
-      start<-1 ; end<-foldlength
-      for (fid in 1:9){
-        Kfolds[length(Kfolds)+1]<-list(samplegenerate[start:end,])
-        start<-start+foldlength ; end<-end+foldlength
-      }
-      Kfolds[length(Kfolds)+1]<-list(samplegenerate[start:nrow(samplegenerate),])
-
-      KfoldsIn=KfoldsOut<-NULL
-
-      KfoldsIn[length(KfoldsIn)+1]<-list(rbind(Kfolds[[1]],Kfolds[[2]],Kfolds[[3]],Kfolds[[4]],Kfolds[[5]],Kfolds[[6]],Kfolds[[7]],Kfolds[[8]],Kfolds[[9]]))
-      KfoldsOut[length(KfoldsOut)+1]<-list(Kfolds[[10]])
-      KfoldsIn[length(KfoldsIn)+1]<-list(rbind(Kfolds[[1]],Kfolds[[2]],Kfolds[[3]],Kfolds[[4]],Kfolds[[5]],Kfolds[[6]],Kfolds[[7]],Kfolds[[8]],Kfolds[[10]]))
-      KfoldsOut[length(KfoldsOut)+1]<-list(Kfolds[[9]])
-      KfoldsIn[length(KfoldsIn)+1]<-list(rbind(Kfolds[[1]],Kfolds[[2]],Kfolds[[3]],Kfolds[[4]],Kfolds[[5]],Kfolds[[6]],Kfolds[[7]],Kfolds[[9]],Kfolds[[10]]))
-      KfoldsOut[length(KfoldsOut)+1]<-list(Kfolds[[8]])
-      KfoldsIn[length(KfoldsIn)+1]<-list(rbind(Kfolds[[1]],Kfolds[[2]],Kfolds[[3]],Kfolds[[4]],Kfolds[[5]],Kfolds[[6]],Kfolds[[8]],Kfolds[[9]],Kfolds[[10]]))
-      KfoldsOut[length(KfoldsOut)+1]<-list(Kfolds[[7]])
-      KfoldsIn[length(KfoldsIn)+1]<-list(rbind(Kfolds[[1]],Kfolds[[2]],Kfolds[[3]],Kfolds[[4]],Kfolds[[5]],Kfolds[[7]],Kfolds[[8]],Kfolds[[9]],Kfolds[[10]]))
-      KfoldsOut[length(KfoldsOut)+1]<-list(Kfolds[[6]])
-      KfoldsIn[length(KfoldsIn)+1]<-list(rbind(Kfolds[[1]],Kfolds[[2]],Kfolds[[3]],Kfolds[[4]],Kfolds[[6]],Kfolds[[7]],Kfolds[[8]],Kfolds[[9]],Kfolds[[10]]))
-      KfoldsOut[length(KfoldsOut)+1]<-list(Kfolds[[5]])
-      KfoldsIn[length(KfoldsIn)+1]<-list(rbind(Kfolds[[1]],Kfolds[[2]],Kfolds[[3]],Kfolds[[5]],Kfolds[[6]],Kfolds[[7]],Kfolds[[8]],Kfolds[[9]],Kfolds[[10]]))
-      KfoldsOut[length(KfoldsOut)+1]<-list(Kfolds[[4]])
-      KfoldsIn[length(KfoldsIn)+1]<-list(rbind(Kfolds[[1]],Kfolds[[2]],Kfolds[[4]],Kfolds[[5]],Kfolds[[6]],Kfolds[[7]],Kfolds[[8]],Kfolds[[9]],Kfolds[[10]]))
-      KfoldsOut[length(KfoldsOut)+1]<-list(Kfolds[[3]])
-      KfoldsIn[length(KfoldsIn)+1]<-list(rbind(Kfolds[[1]],Kfolds[[3]],Kfolds[[4]],Kfolds[[5]],Kfolds[[6]],Kfolds[[7]],Kfolds[[8]],Kfolds[[9]],Kfolds[[10]]))
-      KfoldsOut[length(KfoldsOut)+1]<-list(Kfolds[[2]])
-      KfoldsIn[length(KfoldsIn)+1]<-list(rbind(Kfolds[[2]],Kfolds[[3]],Kfolds[[4]],Kfolds[[5]],Kfolds[[6]],Kfolds[[7]],Kfolds[[8]],Kfolds[[9]],Kfolds[[10]]))
-      KfoldsOut[length(KfoldsOut)+1]<-list(Kfolds[[1]])
-
-      SSE<-0
-      for (TestFolds in 1:10){
-        model<-mlp(as.matrix(KfoldsIn[[TestFolds]][,1:xi]), as.matrix(KfoldsIn[[TestFolds]][,(xi+1):(xi+1)]),
-                   size = (2*xi+1), maxit = 500,initFunc = "Randomize_Weights",
-                   learnFunc = "SCG", hiddenActFunc = "Act_Logistic",
-                   shufflePatterns = FALSE, linOut = TRUE)
-        for.model<-predict(model,as.matrix(KfoldsOut[[TestFolds]][,1:xi]))
-        SSE<-SSE+sum((for.model-KfoldsOut[[TestFolds]][,(xi+1):(xi+1)])^2)
-      }
-      SSEinputnodes<-c(SSEinputnodes,SSE)
-
-    }
-
-    BestInputNodes<-which.min(SSEinputnodes) #best length of input nodes
-
-    samplegenerate<-CreateSamples(datasample=tsmulti,xi=BestInputNodes)
-    modelsBPNN<-mlp(as.matrix(samplegenerate[,1:BestInputNodes]), as.matrix(samplegenerate[,(BestInputNodes+1):(BestInputNodes+1)]),
-                    size = (2*BestInputNodes+1), maxit = 500,initFunc = "Randomize_Weights",
-                    learnFunc = "SCG", hiddenActFunc = "Act_Logistic",
-                    shufflePatterns = FALSE, linOut = TRUE)
-
-
-    finsample<-InvBoxCox((as.matrix(samplegenerate[,(BestInputNodes+1):(BestInputNodes+1)])*(MAX-MIN)+MIN)*Decinsample[(BestInputNodes+1):observations],lambda = lamda)
-    ffitted<-InvBoxCox((modelsBPNN$fitted.values*(MAX-MIN)+MIN)*Decinsample[(BestInputNodes+1):observations],lambda = lamda)
-    GoF<-mean((finsample-ffitted)^2)*100/(mean(finsample)^2)
-
-    #Tables for sMAPE and MASE rolling
-    RollingResults<-data.frame(matrix(NA,ncol=2,nrow=18))
-    colnames(RollingResults)<-c("sMAPE","MASE")
-    #this contains both insample and outsample
-    tsmulti<-c(BoxCox(insample,lambda = lamda)/Decinsample,BoxCox(outsample,lambda = lamda)/Decoutsample)
-
-    for (i in 1:18){
-
-      #Sample for rolling
-      tempin<-t(as.matrix(tail(head(tsmulti,observations+i-1),BestInputNodes)))
-      tempin<-as.matrix(data.frame((tempin-MIN)/(MAX-MIN)) )
-      tempout<-outsample[i]
-
-      #forecast using t-s methods
-      MLPfs<-as.numeric(predict(modelsBPNN,tempin))
-      MLPf<-InvBoxCox((MLPfs[1]*(MAX-MIN)+MIN)*Decoutsample[i],lambda = lamda)
-
-      forecasts<-data.frame(MLPf)
-
-      #Make negative forecasts equal to zero
-      for (k in 1:ncol(forecasts)){
-        if(forecasts[1,k]<0) { forecasts[1,k]<-0 }
-      }
-
-      #Benchmark for MASE
-      maseinsample<-head(c(insample,outsample),observations+i-1)
-      forecastsNaiveSD<-rep(NA,frequency)
-      for (j in (frequency+1):length(maseinsample)){
-        forecastsNaiveSD<-c(forecastsNaiveSD,maseinsample[j-frequency])
-      }
-      masep<-mean(abs(maseinsample-forecastsNaiveSD),na.rm = TRUE)
-
-      #Estimate errors sMAPE and MASE
-      RollingResults$sMAPE[i]<-mean(200*abs(forecasts[1,k]-tempout)/(forecasts[1,k]+tempout))
-      RollingResults$MASE[i]<-mean(abs(forecasts[1,k]-tempout))/masep
-
-
-    }
-
-    #Save errors
-    Results$Time[tsi]<-c(Sys.time()-ttotrain)
-    Results$sMAPE[tsi]<-mean(RollingResults$sMAPE)
-    Results$MASE[tsi]<-mean(RollingResults$MASE)
-    Results$GoF[tsi]<-GoF
-
-  }
-
-}
-what<-c(what,as.numeric(Sys.time()-startt,units="secs")/1045)
-write.csv(Results, file=paste("Results MLP BCandDes.csv"),row.names=FALSE)
-
-print(paste0("MLP Finished at ", date()))
-
+#
+# print(paste0("MLP Started at ", date()))
+#
+# CreateSamples<-function(datasample,xi){
+#
+#   #Normalize insample from 0 to 1
+#   xo<-1
+#   ####  ####  ####  ####  ####  Create data set ####  ####  ####  #### ####  ####  ####  ####
+#   sample<-matrix(NA,nrow=length(datasample),ncol=(xi+xo)) #all possible n-samples
+#   for (cid in (xi+xo):length(datasample)){
+#     sample[cid,]<-datasample[(cid-xi-xo+1):cid]
+#   }
+#   sample<-as.matrix(data.frame(na.omit(sample)))
+#
+#   return(sample)
+# }
+#
+# frequency = 12; descr = "M3-Monthly"; data = subset(M3, frequency)
+# startt<-Sys.time()
+# #Tables for sMAPE and MASE TOTAL
+# Results<-data.frame(matrix(NA,ncol=4,nrow=1428))
+# colnames(Results)<-c("sMAPE","MASE","Time","GoF")
+#
+#
+# for (tsi in 1:1428){
+#
+#   insample<-data[[tsi]]$x
+#   outsample<-data[[tsi]]$xx
+#   observations<-length(insample)
+#
+#   if (observations>80){
+#
+#     ttotrain<-Sys.time()
+#
+#     lamda<-BoxCox.lambda(insample, lower=0, upper=1)
+#     tsmulti<-BoxCox(insample,lambda=lamda)
+#
+#     DecModel<-SeasonalDec(insample=tsmulti,horizon=18,frequency=12)
+#     Decinsample<-DecModel[[1]]
+#     Decoutsample<-DecModel[[2]]
+#
+#     tsmulti<-tsmulti/Decinsample
+#
+#     MAX<-max(tsmulti) ; MIN<-min(tsmulti)
+#     tsmulti<-(tsmulti-MIN)/(MAX-MIN)
+#
+#     #test multiple input nodes and find the optimal using K-fold cross-validation
+#     SSEinputnodes<-c()
+#
+#     for (xi in 1:5){
+#
+#       #create samples
+#       samplegenerate<-CreateSamples(datasample=tsmulti,xi=xi)
+#       #create 10 folds
+#       foldlength<-floor(nrow(samplegenerate)/10) ; Kfolds<-NULL
+#       start<-1 ; end<-foldlength
+#       for (fid in 1:9){
+#         Kfolds[length(Kfolds)+1]<-list(samplegenerate[start:end,])
+#         start<-start+foldlength ; end<-end+foldlength
+#       }
+#       Kfolds[length(Kfolds)+1]<-list(samplegenerate[start:nrow(samplegenerate),])
+#
+#       KfoldsIn=KfoldsOut<-NULL
+#
+#       KfoldsIn[length(KfoldsIn)+1]<-list(rbind(Kfolds[[1]],Kfolds[[2]],Kfolds[[3]],Kfolds[[4]],Kfolds[[5]],Kfolds[[6]],Kfolds[[7]],Kfolds[[8]],Kfolds[[9]]))
+#       KfoldsOut[length(KfoldsOut)+1]<-list(Kfolds[[10]])
+#       KfoldsIn[length(KfoldsIn)+1]<-list(rbind(Kfolds[[1]],Kfolds[[2]],Kfolds[[3]],Kfolds[[4]],Kfolds[[5]],Kfolds[[6]],Kfolds[[7]],Kfolds[[8]],Kfolds[[10]]))
+#       KfoldsOut[length(KfoldsOut)+1]<-list(Kfolds[[9]])
+#       KfoldsIn[length(KfoldsIn)+1]<-list(rbind(Kfolds[[1]],Kfolds[[2]],Kfolds[[3]],Kfolds[[4]],Kfolds[[5]],Kfolds[[6]],Kfolds[[7]],Kfolds[[9]],Kfolds[[10]]))
+#       KfoldsOut[length(KfoldsOut)+1]<-list(Kfolds[[8]])
+#       KfoldsIn[length(KfoldsIn)+1]<-list(rbind(Kfolds[[1]],Kfolds[[2]],Kfolds[[3]],Kfolds[[4]],Kfolds[[5]],Kfolds[[6]],Kfolds[[8]],Kfolds[[9]],Kfolds[[10]]))
+#       KfoldsOut[length(KfoldsOut)+1]<-list(Kfolds[[7]])
+#       KfoldsIn[length(KfoldsIn)+1]<-list(rbind(Kfolds[[1]],Kfolds[[2]],Kfolds[[3]],Kfolds[[4]],Kfolds[[5]],Kfolds[[7]],Kfolds[[8]],Kfolds[[9]],Kfolds[[10]]))
+#       KfoldsOut[length(KfoldsOut)+1]<-list(Kfolds[[6]])
+#       KfoldsIn[length(KfoldsIn)+1]<-list(rbind(Kfolds[[1]],Kfolds[[2]],Kfolds[[3]],Kfolds[[4]],Kfolds[[6]],Kfolds[[7]],Kfolds[[8]],Kfolds[[9]],Kfolds[[10]]))
+#       KfoldsOut[length(KfoldsOut)+1]<-list(Kfolds[[5]])
+#       KfoldsIn[length(KfoldsIn)+1]<-list(rbind(Kfolds[[1]],Kfolds[[2]],Kfolds[[3]],Kfolds[[5]],Kfolds[[6]],Kfolds[[7]],Kfolds[[8]],Kfolds[[9]],Kfolds[[10]]))
+#       KfoldsOut[length(KfoldsOut)+1]<-list(Kfolds[[4]])
+#       KfoldsIn[length(KfoldsIn)+1]<-list(rbind(Kfolds[[1]],Kfolds[[2]],Kfolds[[4]],Kfolds[[5]],Kfolds[[6]],Kfolds[[7]],Kfolds[[8]],Kfolds[[9]],Kfolds[[10]]))
+#       KfoldsOut[length(KfoldsOut)+1]<-list(Kfolds[[3]])
+#       KfoldsIn[length(KfoldsIn)+1]<-list(rbind(Kfolds[[1]],Kfolds[[3]],Kfolds[[4]],Kfolds[[5]],Kfolds[[6]],Kfolds[[7]],Kfolds[[8]],Kfolds[[9]],Kfolds[[10]]))
+#       KfoldsOut[length(KfoldsOut)+1]<-list(Kfolds[[2]])
+#       KfoldsIn[length(KfoldsIn)+1]<-list(rbind(Kfolds[[2]],Kfolds[[3]],Kfolds[[4]],Kfolds[[5]],Kfolds[[6]],Kfolds[[7]],Kfolds[[8]],Kfolds[[9]],Kfolds[[10]]))
+#       KfoldsOut[length(KfoldsOut)+1]<-list(Kfolds[[1]])
+#
+#       SSE<-0
+#       for (TestFolds in 1:10){
+#         model<-mlp(as.matrix(KfoldsIn[[TestFolds]][,1:xi]), as.matrix(KfoldsIn[[TestFolds]][,(xi+1):(xi+1)]),
+#                    size = (2*xi+1), maxit = 500,initFunc = "Randomize_Weights",
+#                    learnFunc = "SCG", hiddenActFunc = "Act_Logistic",
+#                    shufflePatterns = FALSE, linOut = TRUE)
+#         for.model<-predict(model,as.matrix(KfoldsOut[[TestFolds]][,1:xi]))
+#         SSE<-SSE+sum((for.model-KfoldsOut[[TestFolds]][,(xi+1):(xi+1)])^2)
+#       }
+#       SSEinputnodes<-c(SSEinputnodes,SSE)
+#
+#     }
+#
+#     BestInputNodes<-which.min(SSEinputnodes) #best length of input nodes
+#
+#     samplegenerate<-CreateSamples(datasample=tsmulti,xi=BestInputNodes)
+#     modelsBPNN<-mlp(as.matrix(samplegenerate[,1:BestInputNodes]), as.matrix(samplegenerate[,(BestInputNodes+1):(BestInputNodes+1)]),
+#                     size = (2*BestInputNodes+1), maxit = 500,initFunc = "Randomize_Weights",
+#                     learnFunc = "SCG", hiddenActFunc = "Act_Logistic",
+#                     shufflePatterns = FALSE, linOut = TRUE)
+#
+#
+#     finsample<-InvBoxCox((as.matrix(samplegenerate[,(BestInputNodes+1):(BestInputNodes+1)])*(MAX-MIN)+MIN)*Decinsample[(BestInputNodes+1):observations],lambda = lamda)
+#     ffitted<-InvBoxCox((modelsBPNN$fitted.values*(MAX-MIN)+MIN)*Decinsample[(BestInputNodes+1):observations],lambda = lamda)
+#     GoF<-mean((finsample-ffitted)^2)*100/(mean(finsample)^2)
+#
+#     #Tables for sMAPE and MASE rolling
+#     RollingResults<-data.frame(matrix(NA,ncol=2,nrow=18))
+#     colnames(RollingResults)<-c("sMAPE","MASE")
+#     #this contains both insample and outsample
+#     tsmulti<-c(BoxCox(insample,lambda = lamda)/Decinsample,BoxCox(outsample,lambda = lamda)/Decoutsample)
+#
+#     for (i in 1:18){
+#
+#       #Sample for rolling
+#       tempin<-t(as.matrix(tail(head(tsmulti,observations+i-1),BestInputNodes)))
+#       tempin<-as.matrix(data.frame((tempin-MIN)/(MAX-MIN)) )
+#       tempout<-outsample[i]
+#
+#       #forecast using t-s methods
+#       MLPfs<-as.numeric(predict(modelsBPNN,tempin))
+#       MLPf<-InvBoxCox((MLPfs[1]*(MAX-MIN)+MIN)*Decoutsample[i],lambda = lamda)
+#
+#       forecasts<-data.frame(MLPf)
+#
+#       #Make negative forecasts equal to zero
+#       for (k in 1:ncol(forecasts)){
+#         if(forecasts[1,k]<0) { forecasts[1,k]<-0 }
+#       }
+#
+#       #Benchmark for MASE
+#       maseinsample<-head(c(insample,outsample),observations+i-1)
+#       forecastsNaiveSD<-rep(NA,frequency)
+#       for (j in (frequency+1):length(maseinsample)){
+#         forecastsNaiveSD<-c(forecastsNaiveSD,maseinsample[j-frequency])
+#       }
+#       masep<-mean(abs(maseinsample-forecastsNaiveSD),na.rm = TRUE)
+#
+#       #Estimate errors sMAPE and MASE
+#       RollingResults$sMAPE[i]<-mean(200*abs(forecasts[1,k]-tempout)/(forecasts[1,k]+tempout))
+#       RollingResults$MASE[i]<-mean(abs(forecasts[1,k]-tempout))/masep
+#
+#
+#     }
+#
+#     #Save errors
+#     Results$Time[tsi]<-c(Sys.time()-ttotrain)
+#     Results$sMAPE[tsi]<-mean(RollingResults$sMAPE)
+#     Results$MASE[tsi]<-mean(RollingResults$MASE)
+#     Results$GoF[tsi]<-GoF
+#
+#   }
+#
+# }
+# what<-c(what,as.numeric(Sys.time()-startt,units="secs")/1045)
+# write.csv(Results, file=paste("Results MLP BCandDes.csv"),row.names=FALSE)
+#
+# print(paste0("MLP Finished at ", date()))
+#
 #
 # CreateSamples<-function(datasample,xi){
 #
@@ -3934,189 +3935,191 @@ print(paste0("MLP Finished at ", date()))
 #
 #
 #
-# CreateSamples<-function(datasample,xi){
-#
-#   #Normalize insample from 0 to 1
-#   xo<-1
-#   ####  ####  ####  ####  ####  Create data set ####  ####  ####  #### ####  ####  ####  ####
-#   sample<-matrix(NA,nrow=length(datasample),ncol=(xi+xo)) #all possible n-samples
-#   for (cid in (xi+xo):length(datasample)){
-#     sample[cid,]<-datasample[(cid-xi-xo+1):cid]
-#   }
-#   sample<-as.matrix(data.frame(na.omit(sample)))
-#
-#   return(sample)
-# }
-#
-# frequency = 12; descr = "M3-Monthly"; data = subset(M3, frequency)
-# startt<-Sys.time()
-# #Tables for sMAPE and MASE TOTAL
-# Results<-data.frame(matrix(NA,ncol=4,nrow=1428))
-# colnames(Results)<-c("sMAPE","MASE","Time","GoF")
-#
-# sMAPE18<-data.frame(matrix(NA,ncol=18,nrow=1428))
-# MASE18<-data.frame(matrix(NA,ncol=18,nrow=1428))
-#
-#
-# for (tsi in 1:1428){
-#
-#   insample<-data[[tsi]]$x
-#   outsample<-data[[tsi]]$xx
-#   observations<-length(insample)
-#
-#
-#   if (observations>80){
-#
-#     ttotrain<-Sys.time()
-#
-#     lamda<-BoxCox.lambda(insample, lower=0, upper=1)
-#     tsmulti<-BoxCox(insample,lambda=lamda)
-#
-#     DecModel<-SeasonalDec(insample=tsmulti,horizon=18,frequency=12)
-#     Decinsample<-DecModel[[1]]
-#     Decoutsample<-DecModel[[2]]
-#
-#     tsmulti<-tsmulti/Decinsample
-#
-#     p.value<-cox.stuart.test(tsmulti)$p.value
-#
-#     if (p.value<0.01){
-#       trendmodel<-lm(tsmulti~c(1:observations))
-#       trendin<-as.numeric(coef(trendmodel)[1]+coef(trendmodel)[2]*c(1:observations))
-#       trendout<-as.numeric(coef(trendmodel)[1]+coef(trendmodel)[2]*c((observations+1):(observations+18)))
-#       tsmulti<-tsmulti-trendin
-#     }else{
-#       tsmulti<-tsmulti
-#       trendin<-rep(0,observations)
-#       trendout<-rep(0,18)
-#     }
-#
-#
-#     MAX<-max(tsmulti) ; MIN<-min(tsmulti)
-#     tsmulti<-(tsmulti-MIN)/(MAX-MIN)
-#
-#     #test multiple input nodes and find the optimal using K-fold cross-validation
-#     SSEinputnodes<-c()
-#
-#     for (xi in 1:5){
-#
-#       #create samples
-#       samplegenerate<-CreateSamples(datasample=tsmulti,xi=xi)
-#       #create 10 folds
-#       foldlength<-floor(nrow(samplegenerate)/10) ; Kfolds<-NULL
-#       start<-1 ; end<-foldlength
-#       for (fid in 1:9){
-#         Kfolds[length(Kfolds)+1]<-list(samplegenerate[start:end,])
-#         start<-start+foldlength ; end<-end+foldlength
-#       }
-#       Kfolds[length(Kfolds)+1]<-list(samplegenerate[start:nrow(samplegenerate),])
-#
-#       KfoldsIn=KfoldsOut<-NULL
-#
-#       KfoldsIn[length(KfoldsIn)+1]<-list(rbind(Kfolds[[1]],Kfolds[[2]],Kfolds[[3]],Kfolds[[4]],Kfolds[[5]],Kfolds[[6]],Kfolds[[7]],Kfolds[[8]],Kfolds[[9]]))
-#       KfoldsOut[length(KfoldsOut)+1]<-list(Kfolds[[10]])
-#       KfoldsIn[length(KfoldsIn)+1]<-list(rbind(Kfolds[[1]],Kfolds[[2]],Kfolds[[3]],Kfolds[[4]],Kfolds[[5]],Kfolds[[6]],Kfolds[[7]],Kfolds[[8]],Kfolds[[10]]))
-#       KfoldsOut[length(KfoldsOut)+1]<-list(Kfolds[[9]])
-#       KfoldsIn[length(KfoldsIn)+1]<-list(rbind(Kfolds[[1]],Kfolds[[2]],Kfolds[[3]],Kfolds[[4]],Kfolds[[5]],Kfolds[[6]],Kfolds[[7]],Kfolds[[9]],Kfolds[[10]]))
-#       KfoldsOut[length(KfoldsOut)+1]<-list(Kfolds[[8]])
-#       KfoldsIn[length(KfoldsIn)+1]<-list(rbind(Kfolds[[1]],Kfolds[[2]],Kfolds[[3]],Kfolds[[4]],Kfolds[[5]],Kfolds[[6]],Kfolds[[8]],Kfolds[[9]],Kfolds[[10]]))
-#       KfoldsOut[length(KfoldsOut)+1]<-list(Kfolds[[7]])
-#       KfoldsIn[length(KfoldsIn)+1]<-list(rbind(Kfolds[[1]],Kfolds[[2]],Kfolds[[3]],Kfolds[[4]],Kfolds[[5]],Kfolds[[7]],Kfolds[[8]],Kfolds[[9]],Kfolds[[10]]))
-#       KfoldsOut[length(KfoldsOut)+1]<-list(Kfolds[[6]])
-#       KfoldsIn[length(KfoldsIn)+1]<-list(rbind(Kfolds[[1]],Kfolds[[2]],Kfolds[[3]],Kfolds[[4]],Kfolds[[6]],Kfolds[[7]],Kfolds[[8]],Kfolds[[9]],Kfolds[[10]]))
-#       KfoldsOut[length(KfoldsOut)+1]<-list(Kfolds[[5]])
-#       KfoldsIn[length(KfoldsIn)+1]<-list(rbind(Kfolds[[1]],Kfolds[[2]],Kfolds[[3]],Kfolds[[5]],Kfolds[[6]],Kfolds[[7]],Kfolds[[8]],Kfolds[[9]],Kfolds[[10]]))
-#       KfoldsOut[length(KfoldsOut)+1]<-list(Kfolds[[4]])
-#       KfoldsIn[length(KfoldsIn)+1]<-list(rbind(Kfolds[[1]],Kfolds[[2]],Kfolds[[4]],Kfolds[[5]],Kfolds[[6]],Kfolds[[7]],Kfolds[[8]],Kfolds[[9]],Kfolds[[10]]))
-#       KfoldsOut[length(KfoldsOut)+1]<-list(Kfolds[[3]])
-#       KfoldsIn[length(KfoldsIn)+1]<-list(rbind(Kfolds[[1]],Kfolds[[3]],Kfolds[[4]],Kfolds[[5]],Kfolds[[6]],Kfolds[[7]],Kfolds[[8]],Kfolds[[9]],Kfolds[[10]]))
-#       KfoldsOut[length(KfoldsOut)+1]<-list(Kfolds[[2]])
-#       KfoldsIn[length(KfoldsIn)+1]<-list(rbind(Kfolds[[2]],Kfolds[[3]],Kfolds[[4]],Kfolds[[5]],Kfolds[[6]],Kfolds[[7]],Kfolds[[8]],Kfolds[[9]],Kfolds[[10]]))
-#       KfoldsOut[length(KfoldsOut)+1]<-list(Kfolds[[1]])
-#
-#       SSE<-0
-#       for (TestFolds in 1:10){
-#
-#         found<-100
-#         while (length(found)==1){
-#           found<-tryCatch(model<-brnn(as.matrix(KfoldsIn[[TestFolds]][,1:xi]), as.numeric(KfoldsIn[[TestFolds]][,(xi+1):(xi+1)]),
-#                                       neurons=(2*xi+1),normalize=FALSE,epochs=500,verbose=F), error=function(e) 100)
-#         }
-#
-#         for.model<-predict(model,as.matrix(KfoldsOut[[TestFolds]][,1:xi]))
-#         SSE<-SSE+sum((for.model-KfoldsOut[[TestFolds]][,(xi+1):(xi+1)])^2)
-#       }
-#       SSEinputnodes<-c(SSEinputnodes,SSE)
-#
-#     }
-#
-#     BestInputNodes<-which.min(SSEinputnodes) #best length of input nodes
-#     samplegenerate<-CreateSamples(datasample=tsmulti,xi=BestInputNodes)
-#
-#
-#     found<-100
-#     while (length(found)==1){
-#       found<-tryCatch(modelsBPNN<-brnn(as.matrix(KfoldsIn[[TestFolds]][,1:BestInputNodes]), as.numeric(KfoldsIn[[TestFolds]][,(BestInputNodes+1):(BestInputNodes+1)]),
-#                                   neurons=(2*BestInputNodes+1),normalize=FALSE,epochs=500,verbose=F), error=function(e) 100)
-#     }
-#
-#     finsample<-InvBoxCox((as.matrix(samplegenerate[,(BestInputNodes+1):(BestInputNodes+1)])*(MAX-MIN)+MIN+trendin[(BestInputNodes+1):observations])*Decinsample[(BestInputNodes+1):observations],lambda = lamda)
-#     ffitted<-InvBoxCox((predict(modelsBPNN)*(MAX-MIN)+MIN+trendin[(BestInputNodes+1):observations])*Decinsample[(BestInputNodes+1):observations],lambda = lamda)
-#
-#     GoF<-mean((finsample-ffitted)^2)*100/(mean(finsample)^2)
-#
-#
-#     #this contains both insample and outsample
-#     tsmulti<-(c((BoxCox(insample,lambda=lamda)/Decinsample)-trendin)-MIN)/(MAX-MIN)
-#
-#     MLPfs=MLPf<-c()
-#     tsmulti<-c(tsmulti,MLPfs)
-#
-#     for (i in 1:18){
-#
-#       #Sample for rolling
-#       tempin<-t(as.matrix(tail(head(tsmulti,observations+i-1),BestInputNodes)))
-#       #tempin<-as.matrix(data.frame((tempin-MIN)/(MAX-MIN)) )
-#
-#       #forecast using t-s methods
-#       MLPfs<-c(MLPfs,as.numeric(predict(modelsBPNN,tempin)))
-#       tsmulti<-c(tsmulti,MLPfs[length(MLPfs)])
-#
-#     }
-#
-#     MLPf<-InvBoxCox((MLPfs*(MAX-MIN)+MIN+trendout)*Decoutsample,lambda = lamda)
-#
-#     forecasts<-data.frame(MLPf)
-#
-#     #Make negative forecasts equal to zero
-#     for (k in 1:18){
-#       if(forecasts[k,1]<0) { forecasts[k,1]<-0 }
-#     }
-#
-#     #Benchmark for MASE
-#     forecastsNaiveSD<-rep(NA,frequency)
-#     for (j in (frequency+1):observations){
-#       forecastsNaiveSD<-c(forecastsNaiveSD,insample[j-frequency])
-#     }
-#     masep<-mean(abs(insample-forecastsNaiveSD),na.rm = TRUE)
-#
-#     #Save errors
-#     Results$Time[tsi]<-c(Sys.time()-ttotrain)
-#     Results$sMAPE[tsi]<-mean(200*abs(forecasts[,1]-outsample)/(forecasts[,1]+outsample))
-#     Results$MASE[tsi]<-mean(abs(forecasts[,1]-outsample))/masep
-#     Results$GoF[tsi]<-GoF
-#
-#     sMAPE18[tsi,]<-(200*abs(forecasts[,1]-outsample)/(forecasts[,1]+outsample))
-#     MASE18[tsi,]<-abs(forecasts[,1]-outsample)/masep
-#
-#   }
-#
-# }
-# what<-c(what,as.numeric(Sys.time()-startt,units="secs")/1045)
-# write.csv(sMAPE18, file=paste("Results BNN Best interatial sMAPE.csv"),row.names=FALSE)
-# write.csv(MASE18, file=paste("Results BNN Best interatial MASE.csv"),row.names=FALSE)
-# write.csv(Results, file=paste("Results BNN Best interatial.csv"),row.names=FALSE)
-#
+print(paste0("BNN interatial started at ", date()))
+CreateSamples<-function(datasample,xi){
+
+  #Normalize insample from 0 to 1
+  xo<-1
+  ####  ####  ####  ####  ####  Create data set ####  ####  ####  #### ####  ####  ####  ####
+  sample<-matrix(NA,nrow=length(datasample),ncol=(xi+xo)) #all possible n-samples
+  for (cid in (xi+xo):length(datasample)){
+    sample[cid,]<-datasample[(cid-xi-xo+1):cid]
+  }
+  sample<-as.matrix(data.frame(na.omit(sample)))
+
+  return(sample)
+}
+
+frequency = 12; descr = "M3-Monthly"; data = subset(M3, frequency)
+startt<-Sys.time()
+#Tables for sMAPE and MASE TOTAL
+Results<-data.frame(matrix(NA,ncol=4,nrow=1428))
+colnames(Results)<-c("sMAPE","MASE","Time","GoF")
+
+sMAPE18<-data.frame(matrix(NA,ncol=18,nrow=1428))
+MASE18<-data.frame(matrix(NA,ncol=18,nrow=1428))
+
+
+for (tsi in 1:1428){
+
+  insample<-data[[tsi]]$x
+  outsample<-data[[tsi]]$xx
+  observations<-length(insample)
+
+
+  if (observations>80){
+
+    ttotrain<-Sys.time()
+
+    lamda<-BoxCox.lambda(insample, lower=0, upper=1)
+    tsmulti<-BoxCox(insample,lambda=lamda)
+
+    DecModel<-SeasonalDec(insample=tsmulti,horizon=18,frequency=12)
+    Decinsample<-DecModel[[1]]
+    Decoutsample<-DecModel[[2]]
+
+    tsmulti<-tsmulti/Decinsample
+
+    p.value<-cox.stuart.test(tsmulti)$p.value
+
+    if (p.value<0.01){
+      trendmodel<-lm(tsmulti~c(1:observations))
+      trendin<-as.numeric(coef(trendmodel)[1]+coef(trendmodel)[2]*c(1:observations))
+      trendout<-as.numeric(coef(trendmodel)[1]+coef(trendmodel)[2]*c((observations+1):(observations+18)))
+      tsmulti<-tsmulti-trendin
+    }else{
+      tsmulti<-tsmulti
+      trendin<-rep(0,observations)
+      trendout<-rep(0,18)
+    }
+
+
+    MAX<-max(tsmulti) ; MIN<-min(tsmulti)
+    tsmulti<-(tsmulti-MIN)/(MAX-MIN)
+
+    #test multiple input nodes and find the optimal using K-fold cross-validation
+    SSEinputnodes<-c()
+
+    for (xi in 1:5){
+
+      #create samples
+      samplegenerate<-CreateSamples(datasample=tsmulti,xi=xi)
+      #create 10 folds
+      foldlength<-floor(nrow(samplegenerate)/10) ; Kfolds<-NULL
+      start<-1 ; end<-foldlength
+      for (fid in 1:9){
+        Kfolds[length(Kfolds)+1]<-list(samplegenerate[start:end,])
+        start<-start+foldlength ; end<-end+foldlength
+      }
+      Kfolds[length(Kfolds)+1]<-list(samplegenerate[start:nrow(samplegenerate),])
+
+      KfoldsIn=KfoldsOut<-NULL
+
+      KfoldsIn[length(KfoldsIn)+1]<-list(rbind(Kfolds[[1]],Kfolds[[2]],Kfolds[[3]],Kfolds[[4]],Kfolds[[5]],Kfolds[[6]],Kfolds[[7]],Kfolds[[8]],Kfolds[[9]]))
+      KfoldsOut[length(KfoldsOut)+1]<-list(Kfolds[[10]])
+      KfoldsIn[length(KfoldsIn)+1]<-list(rbind(Kfolds[[1]],Kfolds[[2]],Kfolds[[3]],Kfolds[[4]],Kfolds[[5]],Kfolds[[6]],Kfolds[[7]],Kfolds[[8]],Kfolds[[10]]))
+      KfoldsOut[length(KfoldsOut)+1]<-list(Kfolds[[9]])
+      KfoldsIn[length(KfoldsIn)+1]<-list(rbind(Kfolds[[1]],Kfolds[[2]],Kfolds[[3]],Kfolds[[4]],Kfolds[[5]],Kfolds[[6]],Kfolds[[7]],Kfolds[[9]],Kfolds[[10]]))
+      KfoldsOut[length(KfoldsOut)+1]<-list(Kfolds[[8]])
+      KfoldsIn[length(KfoldsIn)+1]<-list(rbind(Kfolds[[1]],Kfolds[[2]],Kfolds[[3]],Kfolds[[4]],Kfolds[[5]],Kfolds[[6]],Kfolds[[8]],Kfolds[[9]],Kfolds[[10]]))
+      KfoldsOut[length(KfoldsOut)+1]<-list(Kfolds[[7]])
+      KfoldsIn[length(KfoldsIn)+1]<-list(rbind(Kfolds[[1]],Kfolds[[2]],Kfolds[[3]],Kfolds[[4]],Kfolds[[5]],Kfolds[[7]],Kfolds[[8]],Kfolds[[9]],Kfolds[[10]]))
+      KfoldsOut[length(KfoldsOut)+1]<-list(Kfolds[[6]])
+      KfoldsIn[length(KfoldsIn)+1]<-list(rbind(Kfolds[[1]],Kfolds[[2]],Kfolds[[3]],Kfolds[[4]],Kfolds[[6]],Kfolds[[7]],Kfolds[[8]],Kfolds[[9]],Kfolds[[10]]))
+      KfoldsOut[length(KfoldsOut)+1]<-list(Kfolds[[5]])
+      KfoldsIn[length(KfoldsIn)+1]<-list(rbind(Kfolds[[1]],Kfolds[[2]],Kfolds[[3]],Kfolds[[5]],Kfolds[[6]],Kfolds[[7]],Kfolds[[8]],Kfolds[[9]],Kfolds[[10]]))
+      KfoldsOut[length(KfoldsOut)+1]<-list(Kfolds[[4]])
+      KfoldsIn[length(KfoldsIn)+1]<-list(rbind(Kfolds[[1]],Kfolds[[2]],Kfolds[[4]],Kfolds[[5]],Kfolds[[6]],Kfolds[[7]],Kfolds[[8]],Kfolds[[9]],Kfolds[[10]]))
+      KfoldsOut[length(KfoldsOut)+1]<-list(Kfolds[[3]])
+      KfoldsIn[length(KfoldsIn)+1]<-list(rbind(Kfolds[[1]],Kfolds[[3]],Kfolds[[4]],Kfolds[[5]],Kfolds[[6]],Kfolds[[7]],Kfolds[[8]],Kfolds[[9]],Kfolds[[10]]))
+      KfoldsOut[length(KfoldsOut)+1]<-list(Kfolds[[2]])
+      KfoldsIn[length(KfoldsIn)+1]<-list(rbind(Kfolds[[2]],Kfolds[[3]],Kfolds[[4]],Kfolds[[5]],Kfolds[[6]],Kfolds[[7]],Kfolds[[8]],Kfolds[[9]],Kfolds[[10]]))
+      KfoldsOut[length(KfoldsOut)+1]<-list(Kfolds[[1]])
+
+      SSE<-0
+      for (TestFolds in 1:10){
+
+        found<-100
+        while (length(found)==1){
+          found<-tryCatch(model<-brnn(as.matrix(KfoldsIn[[TestFolds]][,1:xi]), as.numeric(KfoldsIn[[TestFolds]][,(xi+1):(xi+1)]),
+                                      neurons=(2*xi+1),normalize=FALSE,epochs=500,verbose=F), error=function(e) 100)
+        }
+
+        for.model<-predict(model,as.matrix(KfoldsOut[[TestFolds]][,1:xi]))
+        SSE<-SSE+sum((for.model-KfoldsOut[[TestFolds]][,(xi+1):(xi+1)])^2)
+      }
+      SSEinputnodes<-c(SSEinputnodes,SSE)
+
+    }
+
+    BestInputNodes<-which.min(SSEinputnodes) #best length of input nodes
+    samplegenerate<-CreateSamples(datasample=tsmulti,xi=BestInputNodes)
+
+
+    found<-100
+    while (length(found)==1){
+      found<-tryCatch(modelsBPNN<-brnn(as.matrix(KfoldsIn[[TestFolds]][,1:BestInputNodes]), as.numeric(KfoldsIn[[TestFolds]][,(BestInputNodes+1):(BestInputNodes+1)]),
+                                  neurons=(2*BestInputNodes+1),normalize=FALSE,epochs=500,verbose=F), error=function(e) 100)
+    }
+
+    finsample<-InvBoxCox((as.matrix(samplegenerate[,(BestInputNodes+1):(BestInputNodes+1)])*(MAX-MIN)+MIN+trendin[(BestInputNodes+1):observations])*Decinsample[(BestInputNodes+1):observations],lambda = lamda)
+    ffitted<-InvBoxCox((predict(modelsBPNN)*(MAX-MIN)+MIN+trendin[(BestInputNodes+1):observations])*Decinsample[(BestInputNodes+1):observations],lambda = lamda)
+
+    GoF<-mean((finsample-ffitted)^2)*100/(mean(finsample)^2)
+
+
+    #this contains both insample and outsample
+    tsmulti<-(c((BoxCox(insample,lambda=lamda)/Decinsample)-trendin)-MIN)/(MAX-MIN)
+
+    MLPfs=MLPf<-c()
+    tsmulti<-c(tsmulti,MLPfs)
+
+    for (i in 1:18){
+
+      #Sample for rolling
+      tempin<-t(as.matrix(tail(head(tsmulti,observations+i-1),BestInputNodes)))
+      #tempin<-as.matrix(data.frame((tempin-MIN)/(MAX-MIN)) )
+
+      #forecast using t-s methods
+      MLPfs<-c(MLPfs,as.numeric(predict(modelsBPNN,tempin)))
+      tsmulti<-c(tsmulti,MLPfs[length(MLPfs)])
+
+    }
+
+    MLPf<-InvBoxCox((MLPfs*(MAX-MIN)+MIN+trendout)*Decoutsample,lambda = lamda)
+
+    forecasts<-data.frame(MLPf)
+
+    #Make negative forecasts equal to zero
+    for (k in 1:18){
+      if(forecasts[k,1]<0) { forecasts[k,1]<-0 }
+    }
+
+    #Benchmark for MASE
+    forecastsNaiveSD<-rep(NA,frequency)
+    for (j in (frequency+1):observations){
+      forecastsNaiveSD<-c(forecastsNaiveSD,insample[j-frequency])
+    }
+    masep<-mean(abs(insample-forecastsNaiveSD),na.rm = TRUE)
+
+    #Save errors
+    Results$Time[tsi]<-c(Sys.time()-ttotrain)
+    Results$sMAPE[tsi]<-mean(200*abs(forecasts[,1]-outsample)/(forecasts[,1]+outsample))
+    Results$MASE[tsi]<-mean(abs(forecasts[,1]-outsample))/masep
+    Results$GoF[tsi]<-GoF
+
+    sMAPE18[tsi,]<-(200*abs(forecasts[,1]-outsample)/(forecasts[,1]+outsample))
+    MASE18[tsi,]<-abs(forecasts[,1]-outsample)/masep
+
+  }
+
+}
+what<-c(what,as.numeric(Sys.time()-startt,units="secs")/1045)
+write.csv(sMAPE18, file=paste("Results BNN Best interatial sMAPE.csv"),row.names=FALSE)
+write.csv(MASE18, file=paste("Results BNN Best interatial MASE.csv"),row.names=FALSE)
+write.csv(Results, file=paste("Results BNN Best interatial.csv"),row.names=FALSE)
+print(paste0("BNN interatial ended at ", date()))
+
 # CreateSamplesH<-function(datasample,xi,xo){
 #
 #   ####  ####  ####  ####  ####  Create data set ####  ####  ####  #### ####  ####  ####  ####
