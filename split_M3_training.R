@@ -55,11 +55,11 @@ tt_to_json <- function(idx, tt_list, type_list) {
 
 tt_to_csv <- function(idx, tt_list, type_list, horiz_list) {
   rows <- list()
-  for (x in 1:(length(tt_list[[idx]])-window_size)) {
+  for (x in 1:(length(tt_list[[idx]]) - window_size)) {
     rows[[x]] <- c(get_date(tt_list[[idx]], x),
                    paste0("IDX", idx),
                    as.character(type_list[[idx]]),
-                   tt_list[[idx]][x:(x+window_size)])
+                   tt_list[[idx]][x:(x + window_size)])
   }
   df <- as.data.frame(t(as.data.frame(rows)))
   rownames(df) <- c() #rep(idx, nrow(df))
@@ -67,18 +67,22 @@ tt_to_csv <- function(idx, tt_list, type_list, horiz_list) {
     c("START_DATE", "IDX", "TYPE", paste0("X", window_size:1), "Y")
 
   # Denote validate and test rows as the last two prediction horizons, repsectively
-  df["DATA_SPLIT"] <- c(rep("TRAIN", nrow(df)-2*horiz_list[[idx]]),
-                  rep("VALIDATE", horiz_list[[idx]]),
-                  rep("TEST", horiz_list[[idx]]))
+  df["DATA_SPLIT"] <- c(
+    rep("TRAIN", nrow(df) - 2 * horiz_list[[idx]]),
+    rep("VALIDATE", horiz_list[[idx]]),
+    rep("TEST", horiz_list[[idx]])
+  )
   # if (idx > 198)
   #   browser()
 
-    return(df)
+  return(df)
 }
 
 process_period <- function(period, m3_data, final_mode) {
   print(period)
-  m3_period_data <- keep(subset(m3_data, period), function(tt) length(tt$x) > 80)
+  m3_period_data <-
+    keep(subset(m3_data, period), function(tt)
+      length(tt$x) > 80)
 
   # len_m3_period <-
   #   unlist(lapply(m3_period_data, function(tt)
@@ -139,55 +143,66 @@ process_period <- function(period, m3_data, final_mode) {
       lapply(m3_period_data, function(tt)
         return(tt$x))
 
+    #   # train + test
+    #   m3_test <-
+    #     lapply(m3_period_data, function(tt)
+    #       return(ts(data = c(tt$x, tail(tt$xx, 1)), start = start(tt$x), frequency = frequency(tt$x))))
+    # }
     # train + test
     m3_test <-
       lapply(m3_period_data, function(tt)
-        return(ts(data = c(tt$x, tt$xx), start = start(tt$x), frequency = frequency(tt$x))))
+        return(ts(
+          data = c(tt$x, 1),
+          start = start(tt$x),
+          frequency = frequency(tt$x)
+        )))
   }
 
-  # ###########################################################################
-  # # Write JSON train and test data ####
-  #
-  # json <-
-  #   lapply(1:length(m3_train),
-  #          tt_to_json,
-  #          m3_train,
-  #          m3_type)
-  # sink(paste0(dirname, "train/data.json"))
-  # lapply(json, cat)
-  # sink()
-  #
-  # json <-
-  #   lapply(1:length(m3_test),
-  #          tt_to_json,
-  #          m3_test,
-  #          m3_type)
-  # sink(paste0(dirname, "test/data.json"))
-  # lapply(json, cat)
-  # sink()
-
   ###########################################################################
-  # Write csv train and test data ####
+  # Write JSON train and test data ####
 
-  dfs <-
+  json <-
+    lapply(1:length(m3_train),
+           tt_to_json,
+           m3_train,
+           m3_type)
+  sink(paste0(dirname, "train/data.json"))
+  lapply(json, cat)
+  sink()
+
+  json <-
     lapply(1:length(m3_test),
-           tt_to_csv,
+           tt_to_json,
            m3_test,
-           m3_type,
-           m3_horiz)
-  df <-  do.call(rbind, dfs)
-  write.csv(df, paste0("windowed37_data.csv"), row.names=FALSE)
+           m3_type)
+  sink(paste0(dirname, "test/data.json"))
+  lapply(json, cat)
+  sink()
+
+  # ###########################################################################
+  # # Write csv train and test data ####
+  #
+  # dfs <-
+  #   lapply(1:length(m3_test),
+  #          tt_to_csv,
+  #          m3_test,
+  #          m3_type,
+  #          m3_horiz)
+  # df <-  do.call(rbind, dfs)
+  # write.csv(df, paste0("windowed37_data.csv"), row.names = FALSE)
 
   return(length(m3_train))
 }
 
-# Size of in-sample window for generating csv data
-window_size <-37
+# # Size of in-sample window for generating csv data
+# window_size <- 37
 
 # In validation mode we split the training data into training and validation data sets
 validation_mode <- FALSE
 
-print("!!!! DOES NOT SUPPORT HOURLY AS get_date() RETURNS DATE STRING, NOT 'yyyy-mm-dd HH:MM:SS' !!!!")
+print(
+  "!!!! DOES NOT SUPPORT HOURLY AS get_date() RETURNS DATE STRING, NOT 'yyyy-mm-dd HH:MM:SS' !!!!"
+)
 # periods <- as.vector(levels(m3_data[[1]]$period))
 periods <- c("monthly")
 res <- unlist(lapply(periods, process_period, m3_data, final_mode))
